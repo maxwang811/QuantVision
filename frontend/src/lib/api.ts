@@ -157,6 +157,105 @@ export const BacktestEquityCurveOut = z.object({
 });
 export type BacktestEquityCurveOut = z.infer<typeof BacktestEquityCurveOut>;
 
+export const ForecastMethod = z.enum(["monte_carlo", "bootstrap", "ml_drift"]);
+export type ForecastMethod = z.infer<typeof ForecastMethod>;
+
+export const ForecastCreate = z.object({
+  name: z.string().max(128).nullable().optional(),
+  method: ForecastMethod,
+  tickers: z.array(z.string()).min(1).max(50).optional(),
+  weights: z.array(z.number()).min(1).max(50).optional(),
+  initial_value: z.number().positive().optional(),
+  from_backtest_id: z.string().uuid().optional(),
+  horizon_months: z.number().int().min(1).max(120),
+  n_simulations: z.number().int().min(100).max(50_000),
+  lookback_days: z.number().int().min(252).max(5040),
+  as_of_date: z.string().nullable().optional(),
+  benchmark_ticker: z.string().max(16).nullable().optional(),
+  random_seed: z.number().int().min(0).optional(),
+});
+export type ForecastCreate = z.infer<typeof ForecastCreate>;
+
+export const ForecastOut = z.object({
+  id: z.string().uuid(),
+  name: z.string().nullable(),
+  method: z.string(),
+  status: z.string(),
+  initial_value: z.number(),
+  horizon_months: z.number(),
+  horizon_trading_days: z.number(),
+  n_simulations: z.number(),
+  as_of_date: z.string(),
+  lookback_start: z.string(),
+  lookback_end: z.string(),
+  benchmark_ticker: z.string().nullable(),
+  from_backtest_id: z.string().uuid().nullable(),
+  random_seed: z.number(),
+  tickers: z.array(z.string()).nullable(),
+  weights: z.array(z.number()).nullable(),
+  expected_value: z.number().nullable(),
+  median_value: z.number().nullable(),
+  p5_value: z.number().nullable(),
+  p10_value: z.number().nullable(),
+  p25_value: z.number().nullable(),
+  p75_value: z.number().nullable(),
+  p90_value: z.number().nullable(),
+  p95_value: z.number().nullable(),
+  probability_of_loss: z.number().nullable(),
+  probability_beat_benchmark: z.number().nullable(),
+  annualized_volatility: z.number().nullable(),
+  expected_return: z.number().nullable(),
+  error_message: z.string().nullable(),
+  created_at: z.string(),
+  completed_at: z.string().nullable(),
+});
+export type ForecastOut = z.infer<typeof ForecastOut>;
+
+export const ForecastPathPoint = z.object({
+  index: z.number(),
+  rank_label: z.string().nullable(),
+  values: z.array(z.number()),
+});
+export type ForecastPathPoint = z.infer<typeof ForecastPathPoint>;
+
+export const ForecastPathsOut = z.object({
+  forecast_id: z.string().uuid(),
+  as_of_date: z.string(),
+  horizon_trading_days: z.number(),
+  initial_value: z.number(),
+  step_dates: z.array(z.string()),
+  paths: z.array(ForecastPathPoint),
+});
+export type ForecastPathsOut = z.infer<typeof ForecastPathsOut>;
+
+export const ForecastDistributionBin = z.object({
+  index: z.number(),
+  lower: z.number(),
+  upper: z.number(),
+  count: z.number(),
+});
+export type ForecastDistributionBin = z.infer<typeof ForecastDistributionBin>;
+
+export const ForecastPercentiles = z.object({
+  p5: z.number(),
+  p10: z.number(),
+  p25: z.number(),
+  p50: z.number(),
+  p75: z.number(),
+  p90: z.number(),
+  p95: z.number(),
+});
+export type ForecastPercentiles = z.infer<typeof ForecastPercentiles>;
+
+export const ForecastDistributionOut = z.object({
+  forecast_id: z.string().uuid(),
+  initial_value: z.number(),
+  bin_count: z.number(),
+  bins: z.array(ForecastDistributionBin),
+  percentiles: ForecastPercentiles,
+});
+export type ForecastDistributionOut = z.infer<typeof ForecastDistributionOut>;
+
 export const api = {
   health: () => apiFetch<Health>("/api/health").then((d) => Health.parse(d)),
   searchAssets: (q: string, limit = 20) =>
@@ -184,5 +283,22 @@ export const api = {
   getBacktestEquityCurve: (id: string) =>
     apiFetch<unknown>(`/api/backtests/${encodeURIComponent(id)}/portfolio_values`).then((d) =>
       BacktestEquityCurveOut.parse(d),
+    ),
+  runForecast: (payload: ForecastCreate) =>
+    apiFetch<unknown>("/api/forecasts", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }).then((d) => ForecastOut.parse(d)),
+  getForecast: (id: string) =>
+    apiFetch<unknown>(`/api/forecasts/${encodeURIComponent(id)}`).then((d) =>
+      ForecastOut.parse(d),
+    ),
+  getForecastPaths: (id: string) =>
+    apiFetch<unknown>(`/api/forecasts/${encodeURIComponent(id)}/paths`).then((d) =>
+      ForecastPathsOut.parse(d),
+    ),
+  getForecastDistribution: (id: string) =>
+    apiFetch<unknown>(`/api/forecasts/${encodeURIComponent(id)}/distribution`).then((d) =>
+      ForecastDistributionOut.parse(d),
     ),
 };

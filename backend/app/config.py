@@ -17,6 +17,22 @@ class Settings(BaseSettings):
     environment: str = Field(default="development", alias="ENVIRONMENT")
     risk_free_rate: float = Field(default=0.0, alias="QV_RISK_FREE_RATE")
 
+    forecast_default_lookback_days: int = Field(
+        default=1260, alias="QV_FORECAST_DEFAULT_LOOKBACK_DAYS"
+    )
+    forecast_min_lookback_days: int = Field(
+        default=252, alias="QV_FORECAST_MIN_LOOKBACK_DAYS"
+    )
+    forecast_default_n_simulations: int = Field(
+        default=10_000, alias="QV_FORECAST_DEFAULT_N_SIMULATIONS"
+    )
+    forecast_default_n_sample_paths: int = Field(
+        default=100, alias="QV_FORECAST_DEFAULT_N_SAMPLE_PATHS"
+    )
+    forecast_default_n_bins: int = Field(
+        default=50, alias="QV_FORECAST_DEFAULT_N_BINS"
+    )
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

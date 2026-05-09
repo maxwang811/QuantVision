@@ -96,7 +96,7 @@ export function BacktestForm({ onSuccess }: Props) {
             </span>
             <input
               type="number"
-              min={1}
+              min={0}
               step={100}
               value={initialCash}
               onChange={(e) => setInitialCash(Number(e.target.value))}

@@ -2,6 +2,7 @@
 
 import { ApiRequestError, api, type BacktestOut } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { DrawdownChart } from "./DrawdownChart";
 import { EquityCurveChart } from "./EquityCurveChart";
 import { MetricsTable } from "./MetricsTable";
@@ -47,6 +48,15 @@ export function BacktestResults({ backtestId, initial }: Props) {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <Link
+          href={`/forecast?from_backtest_id=${encodeURIComponent(backtestId)}`}
+          className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-fg hover:border-accent hover:text-accent"
+        >
+          Forecast from this backtest
+        </Link>
+      </div>
+
       <MetricsTable backtest={summary.data} />
 
       {curve.data ? (
