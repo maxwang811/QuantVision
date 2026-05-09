@@ -16,6 +16,10 @@ export class ApiRequestError extends Error {
   }
 }
 
+export function apiUrl(path: string): string {
+  return `${API_URL}${path}`;
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
@@ -312,6 +316,146 @@ export const ForecastDistributionOut = z.object({
 });
 export type ForecastDistributionOut = z.infer<typeof ForecastDistributionOut>;
 
+export const ExperimentKind = z.enum(["backtest", "forecast", "model_run", "sweep"]);
+export type ExperimentKind = z.infer<typeof ExperimentKind>;
+
+export const ExperimentSummary = z.object({
+  id: z.string().uuid(),
+  kind: ExperimentKind,
+  name: z.string().nullable(),
+  status: z.string(),
+  created_at: z.string(),
+  completed_at: z.string().nullable(),
+  label: z.string(),
+  primary_metric_label: z.string().nullable(),
+  primary_metric_value: z.number().nullable(),
+  secondary_metric_label: z.string().nullable(),
+  secondary_metric_value: z.number().nullable(),
+  details: z.record(z.unknown()),
+});
+export type ExperimentSummary = z.infer<typeof ExperimentSummary>;
+
+export const ExperimentListOut = z.object({
+  items: z.array(ExperimentSummary),
+  total: z.number(),
+  limit: z.number(),
+  offset: z.number(),
+});
+export type ExperimentListOut = z.infer<typeof ExperimentListOut>;
+
+export const ExperimentCompareRequest = z.object({
+  backtest_ids: z.array(z.string().uuid()).default([]),
+  forecast_ids: z.array(z.string().uuid()).default([]),
+});
+export type ExperimentCompareRequest = z.infer<typeof ExperimentCompareRequest>;
+
+export const NormalizedCurvePoint = z.object({
+  date: z.string(),
+  value: z.number(),
+});
+export type NormalizedCurvePoint = z.infer<typeof NormalizedCurvePoint>;
+
+export const BacktestComparisonItem = z.object({
+  id: z.string().uuid(),
+  name: z.string().nullable(),
+  strategy: z.string(),
+  status: z.string(),
+  start_date: z.string(),
+  end_date: z.string(),
+  initial_cash: z.number(),
+  final_value: z.number().nullable(),
+  total_return: z.number().nullable(),
+  annualized_return: z.number().nullable(),
+  volatility: z.number().nullable(),
+  sharpe_ratio: z.number().nullable(),
+  max_drawdown: z.number().nullable(),
+  benchmark_ticker: z.string().nullable(),
+  benchmark_total_return: z.number().nullable(),
+  created_at: z.string(),
+  normalized_curve: z.array(NormalizedCurvePoint),
+});
+export type BacktestComparisonItem = z.infer<typeof BacktestComparisonItem>;
+
+export const ForecastDistributionCompareBin = z.object({
+  index: z.number(),
+  lower: z.number(),
+  upper: z.number(),
+  count: z.number(),
+});
+export type ForecastDistributionCompareBin = z.infer<typeof ForecastDistributionCompareBin>;
+
+export const ForecastComparisonItem = z.object({
+  id: z.string().uuid(),
+  name: z.string().nullable(),
+  method: z.string(),
+  status: z.string(),
+  initial_value: z.number(),
+  horizon_months: z.number(),
+  n_simulations: z.number(),
+  expected_value: z.number().nullable(),
+  median_value: z.number().nullable(),
+  p10_value: z.number().nullable(),
+  p90_value: z.number().nullable(),
+  probability_of_loss: z.number().nullable(),
+  probability_beat_benchmark: z.number().nullable(),
+  benchmark_ticker: z.string().nullable(),
+  created_at: z.string(),
+  distribution_bins: z.array(ForecastDistributionCompareBin),
+});
+export type ForecastComparisonItem = z.infer<typeof ForecastComparisonItem>;
+
+export const ExperimentCompareOut = z.object({
+  backtests: z.array(BacktestComparisonItem),
+  forecasts: z.array(ForecastComparisonItem),
+});
+export type ExperimentCompareOut = z.infer<typeof ExperimentCompareOut>;
+
+export const ExperimentSweepCreate = z.object({
+  kind: z.enum(["backtest", "forecast"]),
+  name: z.string().max(128).nullable().optional(),
+  base_request: z.record(z.unknown()),
+  sweep_parameters: z.record(z.array(z.unknown())),
+  max_runs: z.number().int().min(1).max(50).optional(),
+});
+export type ExperimentSweepCreate = z.infer<typeof ExperimentSweepCreate>;
+
+export const ExperimentSweepOut = z.object({
+  id: z.string().uuid(),
+  name: z.string().nullable(),
+  kind: z.string(),
+  status: z.string(),
+  base_request: z.record(z.unknown()),
+  sweep_parameters: z.record(z.unknown()),
+  total_runs: z.number(),
+  completed_runs: z.number(),
+  failed_runs: z.number(),
+  error_message: z.string().nullable(),
+  created_at: z.string(),
+  completed_at: z.string().nullable(),
+});
+export type ExperimentSweepOut = z.infer<typeof ExperimentSweepOut>;
+
+export const ExperimentSweepRunOut = z.object({
+  id: z.string().uuid(),
+  sweep_id: z.string().uuid(),
+  run_index: z.number(),
+  kind: z.string(),
+  params: z.record(z.unknown()),
+  backtest_id: z.string().uuid().nullable(),
+  forecast_id: z.string().uuid().nullable(),
+  status: z.string(),
+  error_message: z.string().nullable(),
+  created_at: z.string(),
+  completed_at: z.string().nullable(),
+});
+export type ExperimentSweepRunOut = z.infer<typeof ExperimentSweepRunOut>;
+
+export const ExperimentSweepRunsOut = z.object({
+  sweep_id: z.string().uuid(),
+  runs: z.array(ExperimentSweepRunOut),
+});
+export type ExperimentSweepRunsOut = z.infer<typeof ExperimentSweepRunsOut>;
+
 export const api = {
   health: () => apiFetch<Health>("/api/health").then((d) => Health.parse(d)),
   searchAssets: (q: string, limit = 20) =>
@@ -372,4 +516,77 @@ export const api = {
     apiFetch<unknown>(`/api/forecasts/${encodeURIComponent(id)}/distribution`).then((d) =>
       ForecastDistributionOut.parse(d),
     ),
+  listExperiments: (
+    opts: {
+      kind?: ExperimentKind | "all";
+      status?: string;
+      q?: string;
+      limit?: number;
+      offset?: number;
+    } = {},
+  ) => {
+    const qs = new URLSearchParams();
+    if (opts.kind && opts.kind !== "all") qs.set("kind", opts.kind);
+    if (opts.status) qs.set("status", opts.status);
+    if (opts.q) qs.set("q", opts.q);
+    if (opts.limit) qs.set("limit", String(opts.limit));
+    if (opts.offset) qs.set("offset", String(opts.offset));
+    return apiFetch<unknown>(`/api/experiments${qs.toString() ? `?${qs}` : ""}`).then((d) =>
+      ExperimentListOut.parse(d),
+    );
+  },
+  compareExperiments: (payload: ExperimentCompareRequest) =>
+    apiFetch<unknown>("/api/experiments/compare", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }).then((d) => ExperimentCompareOut.parse(d)),
+  createSweep: (payload: ExperimentSweepCreate) =>
+    apiFetch<unknown>("/api/experiment-sweeps", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }).then((d) => ExperimentSweepOut.parse(d)),
+  getSweep: (id: string) =>
+    apiFetch<unknown>(`/api/experiment-sweeps/${encodeURIComponent(id)}`).then((d) =>
+      ExperimentSweepOut.parse(d),
+    ),
+  getSweepRuns: (id: string) =>
+    apiFetch<unknown>(`/api/experiment-sweeps/${encodeURIComponent(id)}/runs`).then((d) =>
+      ExperimentSweepRunsOut.parse(d),
+    ),
+  exportBacktestUrl: (
+    id: string,
+    format: "json" | "csv" = "json",
+    artifact: "summary" | "portfolio_values" | "trades" = "summary",
+  ) =>
+    apiUrl(
+      `/api/exports/backtests/${encodeURIComponent(id)}?format=${format}&artifact=${artifact}`,
+    ),
+  exportForecastUrl: (
+    id: string,
+    format: "json" | "csv" = "json",
+    artifact: "summary" | "distribution" | "paths" = "summary",
+  ) =>
+    apiUrl(
+      `/api/exports/forecasts/${encodeURIComponent(id)}?format=${format}&artifact=${artifact}`,
+    ),
+  exportSweepUrl: (id: string, format: "json" | "csv" = "json") =>
+    apiUrl(`/api/exports/sweeps/${encodeURIComponent(id)}?format=${format}`),
+  exportCompare: async (payload: ExperimentCompareRequest, format: "json" | "csv") => {
+    const res = await fetch(apiUrl(`/api/exports/compare?format=${format}`), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      let message = res.statusText;
+      try {
+        const body = ApiError.parse(await res.json());
+        message = `${body.error.code}: ${body.error.message}`;
+      } catch {
+        // keep status text
+      }
+      throw new Error(message);
+    }
+    return res.blob();
+  },
 };

@@ -3,6 +3,8 @@
 from app.models.asset import Asset
 from app.models.backtest import Backtest
 from app.models.base import Base
+from app.models.experiment_sweep import ExperimentSweep
+from app.models.experiment_sweep_run import ExperimentSweepRun
 from app.models.forecast import Forecast
 from app.models.forecast_distribution_bin import ForecastDistributionBin
 from app.models.forecast_path import ForecastPath
@@ -16,6 +18,8 @@ __all__ = [
     "Asset",
     "Backtest",
     "Base",
+    "ExperimentSweep",
+    "ExperimentSweepRun",
     "Forecast",
     "ForecastDistributionBin",
     "ForecastPath",

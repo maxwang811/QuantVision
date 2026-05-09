@@ -75,17 +75,11 @@ def core_metrics(
     total_ret = final / initial_cash - 1.0
 
     yf = year_fraction(period_start, period_end)
-    if yf > 0 and (1.0 + total_ret) > 0:
-        ann_ret = (1.0 + total_ret) ** (1.0 / yf) - 1.0
-    else:
-        ann_ret = 0.0
+    ann_ret = (1.0 + total_ret) ** (1.0 / yf) - 1.0 if yf > 0 and 1.0 + total_ret > 0 else 0.0
 
     rets = daily_returns(daily_total_values)
-    if rets.size >= 2:
-        # Sample std (ddof=1) annualized via sqrt(252).
-        vol = float(rets.std(ddof=1) * np.sqrt(TRADING_DAYS_PER_YEAR))
-    else:
-        vol = 0.0
+    # Sample std (ddof=1) annualized via sqrt(252).
+    vol = float(rets.std(ddof=1) * np.sqrt(TRADING_DAYS_PER_YEAR)) if rets.size >= 2 else 0.0
 
     # Float-safe threshold: avoid Sharpe blow-up on near-zero variance series.
     sharpe = (ann_ret - risk_free_rate) / vol if vol > 1e-12 else 0.0

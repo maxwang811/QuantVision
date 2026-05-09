@@ -25,6 +25,7 @@ interface Props {
 
 export function BacktestForm({ onSuccess }: Props) {
   const [rows, setRows] = useState<PortfolioRow[]>(DEFAULT_ROWS);
+  const [name, setName] = useState<string>("");
   const [strategy, setStrategy] = useState<StrategyName>("monthly_rebalance");
   const [initialCash, setInitialCash] = useState<number>(10_000);
   const [startDate, setStartDate] = useState<string>("2020-01-01");
@@ -84,6 +85,7 @@ export function BacktestForm({ onSuccess }: Props) {
       : cleanRows.map((r) => r.weightPct / 100);
     const effectiveTopN = Math.min(topN, cleanRows.length);
     const built: BacktestCreate = {
+      name: name.trim() || null,
       strategy,
       tickers: cleanRows.map((r) => r.ticker.toUpperCase()),
       weights,
@@ -112,6 +114,7 @@ export function BacktestForm({ onSuccess }: Props) {
     return { localError: null, payload: built };
   }, [
     rows,
+    name,
     strategy,
     initialCash,
     startDate,
@@ -144,6 +147,17 @@ export function BacktestForm({ onSuccess }: Props) {
 
   return (
     <form onSubmit={submit} className="space-y-6 rounded-lg border border-border p-5">
+      <Field label="Run name (optional)">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={128}
+          placeholder="Monthly rebalance baseline"
+          className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-accent"
+        />
+      </Field>
+
       <PortfolioWeightEditor rows={rows} onChange={setRows} />
 
       <StrategySelector value={strategy} onChange={setStrategy} />

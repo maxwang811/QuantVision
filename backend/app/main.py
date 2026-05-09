@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import (
     routes_assets,
     routes_backtest,
+    routes_experiments,
+    routes_exports,
     routes_forecast,
     routes_health,
     routes_ml,
@@ -48,6 +50,8 @@ def create_app() -> FastAPI:
     app.include_router(routes_backtest.router, prefix="/api", tags=["backtests"])
     app.include_router(routes_forecast.router, prefix="/api", tags=["forecasts"])
     app.include_router(routes_ml.router, prefix="/api", tags=["ml"])
+    app.include_router(routes_experiments.router, prefix="/api", tags=["experiments"])
+    app.include_router(routes_exports.router, prefix="/api", tags=["exports"])
 
     return app
 

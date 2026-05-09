@@ -44,6 +44,7 @@ interface Props {
 
 export function ForecastForm({ defaultBacktestId, onSuccess }: Props) {
   const [mode, setMode] = useState<ForecastMode>(defaultBacktestId ? "backtest" : "manual");
+  const [name, setName] = useState<string>("");
   const [rows, setRows] = useState<PortfolioRow[]>(DEFAULT_ROWS);
   const [fromBacktestId, setFromBacktestId] = useState<string>(defaultBacktestId ?? "");
   const [method, setMethod] = useState<ForecastMethod>("monte_carlo");
@@ -74,6 +75,7 @@ export function ForecastForm({ defaultBacktestId, onSuccess }: Props) {
         localError: null,
         payload: {
           ...common.payload,
+          name: name.trim() || null,
           from_backtest_id: id,
         } satisfies ForecastCreate,
       };
@@ -104,6 +106,7 @@ export function ForecastForm({ defaultBacktestId, onSuccess }: Props) {
       localError: null,
       payload: {
         ...common.payload,
+        name: name.trim() || null,
         tickers: cleanRows.map((r) => r.ticker.toUpperCase()),
         weights: cleanRows.map((r) => r.weightPct / 100),
         initial_value: initialValue,
@@ -111,6 +114,7 @@ export function ForecastForm({ defaultBacktestId, onSuccess }: Props) {
     };
   }, [
     method,
+    name,
     horizonMonths,
     nSimulations,
     lookbackDays,
@@ -142,6 +146,17 @@ export function ForecastForm({ defaultBacktestId, onSuccess }: Props) {
 
   return (
     <form onSubmit={submit} className="space-y-6 rounded-lg border border-border p-5">
+      <Field label="Run name (optional)">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={128}
+          placeholder="12 month Monte Carlo baseline"
+          className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-accent"
+        />
+      </Field>
+
       <div className="space-y-2">
         <div className="text-sm font-semibold uppercase tracking-wide text-muted">
           Forecast source

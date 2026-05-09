@@ -183,7 +183,7 @@ def test_unknown_ticker_raises_validation_error(db):
 def test_insufficient_history_raises_validation_error(db):
     end_date = date(2025, 6, 30)
     spy = _seed_asset(db, "SPY")
-    # Only 50 days of data — less than the default 252-day lookback × 0.95.
+    # Only 50 days of data - less than the default 252-day lookback x 0.95.
     _seed_synthetic_prices(db, spy, end_date, 50, seed=1)
 
     req = ForecastCreate(

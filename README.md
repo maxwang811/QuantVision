@@ -40,4 +40,4 @@ Then open <http://localhost:3000>.
 
 ## Status
 
-Stage 6 — ML ranking strategies. Stages 1–5 deliver data ingestion, event-driven backtesting, risk metrics, the Next.js dashboard, and Monte Carlo/bootstrap forecasting. Stage 6 adds walk-forward Logistic Regression/XGBoost ranking, persisted model runs and predictions, momentum and ML ranking backtests, and frontend controls for ranking strategy parameters. Experiment tracking (Stage 7) is next.
+Stage 7 — Experiment tracking, comparison, sweeps, and exports. Stages 1–6 deliver data ingestion, event-driven backtesting, risk metrics, the Next.js dashboard, Monte Carlo/bootstrap forecasting, and walk-forward ML ranking. Stage 7 adds unified history, side-by-side comparison, bounded backtest/forecast parameter sweeps, and CSV/JSON exports.

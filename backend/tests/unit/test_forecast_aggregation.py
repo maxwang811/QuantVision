@@ -86,7 +86,7 @@ def test_select_sample_paths_labels_correct():
 
 def test_select_sample_paths_clips_to_available():
     paths = np.array([[100, 90], [100, 110], [100, 120]], dtype=float)
-    sampled, labels = select_sample_paths(paths, n_sample=100)
+    sampled, _labels = select_sample_paths(paths, n_sample=100)
     assert sampled.shape[0] == 3
 
 

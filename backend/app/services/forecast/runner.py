@@ -11,7 +11,7 @@ import logging
 import secrets
 import uuid
 from collections import defaultdict
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import numpy as np
@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.core.errors import NotFoundError, ValidationError
-from app.core.time import add_trading_days, trading_days
+from app.core.time import add_trading_days
 from app.models.asset import Asset
 from app.models.backtest import Backtest
 from app.models.forecast import Forecast
@@ -101,7 +101,7 @@ def run_forecast(db: Session, req: ForecastCreate) -> Forecast:
             code="insufficient_history",
         )
 
-    horizon_trading_days = int(round(req.horizon_months / 12.0 * _TRADING_DAYS_PER_YEAR))
+    horizon_trading_days = round(req.horizon_months / 12.0 * _TRADING_DAYS_PER_YEAR)
     lookback_start = common_dates[0]
     lookback_end = common_dates[-1]
 
@@ -202,7 +202,7 @@ def run_forecast(db: Session, req: ForecastCreate) -> Forecast:
         fc.error_message = "validation error during forecast execution"
         db.commit()
         raise
-    except Exception as e:  # noqa: BLE001 — engine failures surface as failed rows
+    except Exception as e:
         log.exception("forecast %s failed", fc.id)
         fc.status = "failed"
         fc.error_message = str(e)[:1000]
@@ -469,4 +469,4 @@ def _utc_now(db: Session) -> datetime:
     val = db.scalar(select(func.now()))
     if isinstance(val, datetime):
         return val
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)

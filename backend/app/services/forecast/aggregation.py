@@ -109,7 +109,7 @@ def select_sample_paths(
     else:
         filler_indices = np.array([], dtype=int)
 
-    chosen_indices: list[int] = list(filler_indices.tolist()) + [worst_idx, median_idx, best_idx]
+    chosen_indices: list[int] = [*filler_indices.tolist(), worst_idx, median_idx, best_idx]
     # De-duplicate while preserving insertion order; if duplicates collapse the
     # output, top up with extra rank-quantile rows.
     seen: set[int] = set()
