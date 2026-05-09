@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import routes_assets, routes_health, routes_prices
+from app.api import routes_assets, routes_backtest, routes_health, routes_prices
 from app.config import get_settings
 from app.core.errors import register_error_handlers
 from app.core.logging import configure_logging
@@ -38,6 +38,7 @@ def create_app() -> FastAPI:
     app.include_router(routes_health.router, prefix="/api", tags=["health"])
     app.include_router(routes_assets.router, prefix="/api", tags=["assets"])
     app.include_router(routes_prices.router, prefix="/api", tags=["prices"])
+    app.include_router(routes_backtest.router, prefix="/api", tags=["backtests"])
 
     return app
 

@@ -50,3 +50,12 @@ def latest_price_date(db: Session, asset_id) -> date | None:
         .order_by(PriceHistory.date.desc())
         .limit(1)
     )
+
+
+def earliest_price_date(db: Session, asset_id) -> date | None:
+    return db.scalar(
+        select(PriceHistory.date)
+        .where(PriceHistory.asset_id == asset_id)
+        .order_by(PriceHistory.date.asc())
+        .limit(1)
+    )

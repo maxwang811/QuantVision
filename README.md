@@ -40,4 +40,4 @@ Then open <http://localhost:3000>.
 
 ## Status
 
-Stage 1 — Foundation & data ingestion. See plan file for the full roadmap.
+Stage 2 — Backtesting engine. Buy-and-hold and monthly-rebalance strategies, T+1 close fills, basis-point transaction costs, full trade + daily portfolio-value persistence, four `/api/backtests` endpoints. Risk metrics (Sharpe, max drawdown, CAGR) and the frontend dashboard are next.

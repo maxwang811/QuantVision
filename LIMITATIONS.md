@@ -12,13 +12,21 @@ QuantVision is a research/educational platform. The simulations are bound by sev
 
 ## Backtesting limitations
 
-**Simplistic transaction model.** No bid-ask spread, no market impact, no borrow cost (so no real shorting). Slippage is modeled as a flat basis-point haircut. Real-world execution costs scale with order size, liquidity, and market regime. Stress-test by raising `transaction_cost_bps` and `slippage_bps`.
+**Simplistic transaction model.** No bid-ask spread, no market impact, no borrow cost (so no real shorting). Costs are modeled as a flat basis-point haircut on notional (`transaction_cost_bps`); no separate slippage model in Stage 2. Real-world execution costs scale with order size, liquidity, and market regime.
 
-**T+1 execution assumption.** Signals fire at close[T]; orders execute at close[T+1] with slippage. This is the standard convention but real markets execute at the open or via VWAP/TWAP algorithms.
+**T+1 execution.** Signals fire at close[T]; orders execute at close[T+1]. This is the standard convention but real markets execute at the open or via VWAP/TWAP algorithms. Orders queued on the final trading day cannot fill (no T+1 within the window) and are dropped with a warning.
+
+**Forward-fill on missing prices.** When a ticker has no bar on a given trading day (holiday, halt, partial yfinance coverage), the engine forward-fills from the most recent prior `adj_close`. If a ticker has no price *anywhere* before `start_date`, the runner rejects the request with `insufficient_coverage`. Prices are loaded with a 14 calendar-day pre-buffer so day-0 fills always have a source.
+
+**Fractional shares.** The engine allows fractional shares so target-weight allocations are exact. Real markets often don't; this is a known simplification.
+
+**Adjusted close only.** All signals, fills, and equity calculations use `adj_close`, which already accounts for splits and dividends. Dividends are not modeled as separate cash flows.
 
 **No corporate actions besides splits/dividends.** Mergers, tender offers, spin-offs, ticker changes — all ignored.
 
-**Look-ahead bias.** The engine guards against look-ahead by exposing only `date < ctx.date` to the strategy. Feature engineering uses `.shift(1)` and is unit-tested for leakage. But subtle leakage is always possible; flag suspicious results.
+**Synchronous engine (Stage 2).** `POST /api/backtests` runs the engine inline and blocks the request thread. A 5y × 5-ticker run is sub-second; longer runs will block proportionally. A job queue is deferred to Stage 7.
+
+**Look-ahead bias.** The engine guards against look-ahead by slicing `BacktestContext.prices_so_far[ticker]` to dates ≤ `ctx.date` on every iteration; combined with the T+1 fill rule, a strategy cannot trade on data it hasn't yet seen. A `PeekingStrategy` canary test asserts the slice invariant. But subtle leakage in future feature engineering is always possible; flag suspicious results.
 
 ## Forecasting limitations
 
