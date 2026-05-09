@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.errors import NotFoundError
+from app.core.errors import NotFoundError, ValidationError
 from app.db import get_db
 from app.models.asset import Asset
 from app.models.backtest import Backtest
@@ -15,10 +15,13 @@ from app.schemas.backtest import (
     BacktestEquityCurveOut,
     BacktestOut,
     BacktestTradesOut,
+    BenchmarkPoint,
     PortfolioValuePoint,
     TradeOut,
 )
-from app.services.backtest.runner import run_backtest
+from app.services.backtest import metrics
+from app.services.backtest.runner import compute_metrics_for_backtest, run_backtest
+from app.services.data.price_repo import get_prices
 
 router = APIRouter()
 
@@ -45,6 +48,29 @@ def create_backtest(req: BacktestCreate, db: Session = Depends(get_db)) -> Backt
 @router.get("/backtests/{backtest_id}", response_model=BacktestOut)
 def get_backtest(backtest_id: UUID, db: Session = Depends(get_db)) -> BacktestOut:
     bt = _get_backtest_or_404(db, backtest_id)
+    return BacktestOut.model_validate(bt)
+
+
+@router.post(
+    "/backtests/{backtest_id}/recompute_metrics", response_model=BacktestOut
+)
+def recompute_metrics(
+    backtest_id: UUID, db: Session = Depends(get_db)
+) -> BacktestOut:
+    """Re-derive metrics from the persisted portfolio_values series.
+
+    Useful after a metric formula bug is fixed — avoids re-running the engine.
+    Only valid on completed backtests.
+    """
+    bt = _get_backtest_or_404(db, backtest_id)
+    if bt.status != "completed":
+        raise ValidationError(
+            f"can only recompute metrics on completed backtests (status={bt.status})",
+            code="recompute_invalid_status",
+        )
+    compute_metrics_for_backtest(db, bt)
+    db.commit()
+    db.refresh(bt)
     return BacktestOut.model_validate(bt)
 
 
@@ -84,7 +110,7 @@ def get_backtest_trades(
 def get_backtest_portfolio_values(
     backtest_id: UUID, db: Session = Depends(get_db)
 ) -> BacktestEquityCurveOut:
-    _get_backtest_or_404(db, backtest_id)
+    bt = _get_backtest_or_404(db, backtest_id)
     rows = list(
         db.scalars(
             select(PortfolioValue)
@@ -101,4 +127,26 @@ def get_backtest_portfolio_values(
         )
         for r in rows
     ]
-    return BacktestEquityCurveOut(backtest_id=backtest_id, points=points)
+
+    benchmark_series: list[BenchmarkPoint] | None = None
+    if bt.benchmark_ticker and rows:
+        bench_rows = get_prices(db, bt.benchmark_ticker, bt.start_date, bt.end_date)
+        if bench_rows:
+            bench_pairs = [(r.date, float(r.adj_close)) for r in bench_rows]
+            portfolio_dates = [r.date for r in rows]
+            scaled = metrics.build_benchmark_series(
+                benchmark_prices=bench_pairs,
+                portfolio_dates=portfolio_dates,
+                initial_cash=float(bt.initial_cash),
+            )
+            benchmark_series = [
+                BenchmarkPoint(date=d, value=v)
+                for d, v in zip(portfolio_dates, scaled, strict=True)
+            ]
+
+    return BacktestEquityCurveOut(
+        backtest_id=backtest_id,
+        points=points,
+        benchmark=benchmark_series,
+        benchmark_ticker=bt.benchmark_ticker,
+    )

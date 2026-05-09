@@ -15,6 +15,7 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.core.errors import ValidationError
 from app.core.time import trading_days
 from app.models.asset import Asset
@@ -23,10 +24,14 @@ from app.models.portfolio_value import PortfolioValue
 from app.models.price import PriceHistory
 from app.models.trade import Trade
 from app.schemas.backtest import BacktestCreate
-from app.services.backtest import engine
+from app.services.backtest import engine, metrics
 from app.services.backtest.context import PriceBar
 from app.services.backtest.strategies import build_strategy
-from app.services.data.price_repo import earliest_price_date, latest_price_date
+from app.services.data.price_repo import (
+    earliest_price_date,
+    get_prices,
+    latest_price_date,
+)
 
 log = logging.getLogger(__name__)
 
@@ -36,9 +41,14 @@ PRE_BUFFER_DAYS = 14
 def run_backtest(db: Session, req: BacktestCreate) -> Backtest:
     """Validate, run, persist. Always returns a Backtest row (status reflects outcome)."""
     asset_map = _validate(db, req)
+    # Drop the benchmark from the trading universe; metrics load it separately.
+    trading_assets = {t: asset_map[t] for t in req.tickers}
 
     prices_master = _load_prices(
-        db, asset_map, req.start_date - timedelta(days=PRE_BUFFER_DAYS), req.end_date
+        db,
+        trading_assets,
+        req.start_date - timedelta(days=PRE_BUFFER_DAYS),
+        req.end_date,
     )
 
     backtest = Backtest(
@@ -69,13 +79,21 @@ def run_backtest(db: Session, req: BacktestCreate) -> Backtest:
             transaction_cost_bps=req.transaction_cost_bps,
         )
 
-        _persist_trades(db, backtest.id, result.fills, asset_map)
+        _persist_trades(db, backtest.id, result.fills, trading_assets)
         _persist_portfolio_values(db, backtest.id, result.daily_values)
 
         final_value = result.daily_values[-1].total_value
         total_return = (final_value - req.initial_cash) / req.initial_cash
         backtest.final_value = Decimal(str(final_value))
         backtest.total_return = Decimal(str(total_return))
+
+        _compute_and_persist_metrics(
+            db,
+            backtest,
+            daily_total_values=[dv.total_value for dv in result.daily_values],
+            daily_dates=[dv.date for dv in result.daily_values],
+        )
+
         backtest.status = "completed"
         backtest.completed_at = _utc_now(db)
     except Exception as e:
@@ -89,10 +107,113 @@ def run_backtest(db: Session, req: BacktestCreate) -> Backtest:
     return backtest
 
 
+def compute_metrics_for_backtest(db: Session, backtest: Backtest) -> None:
+    """Re-derive metrics from persisted portfolio_values + benchmark prices.
+
+    Used by the recompute endpoint. Mutates the passed Backtest in place; the
+    caller is responsible for committing.
+    """
+    rows = list(
+        db.scalars(
+            select(PortfolioValue)
+            .where(PortfolioValue.backtest_id == backtest.id)
+            .order_by(PortfolioValue.date)
+        )
+    )
+    if not rows:
+        raise ValidationError(
+            f"backtest {backtest.id} has no portfolio_values to recompute from",
+            code="no_portfolio_values",
+        )
+    daily_total_values = [float(r.total_value) for r in rows]
+    daily_dates = [r.date for r in rows]
+    _compute_and_persist_metrics(
+        db, backtest, daily_total_values=daily_total_values, daily_dates=daily_dates
+    )
+
+
+def _compute_and_persist_metrics(
+    db: Session,
+    backtest: Backtest,
+    *,
+    daily_total_values: list[float],
+    daily_dates: list[date],
+) -> None:
+    """Compute core + (optional) benchmark metrics and write them to the row."""
+    settings = get_settings()
+    rf = settings.risk_free_rate
+
+    core = metrics.core_metrics(
+        daily_total_values=daily_total_values,
+        initial_cash=float(backtest.initial_cash),
+        period_start=backtest.start_date,
+        period_end=backtest.end_date,
+        risk_free_rate=rf,
+    )
+    backtest.total_return = Decimal(str(core.total_return))
+    backtest.annualized_return = Decimal(str(core.annualized_return))
+    backtest.volatility = Decimal(str(core.volatility))
+    backtest.sharpe_ratio = Decimal(str(core.sharpe_ratio))
+    backtest.max_drawdown = Decimal(str(core.max_drawdown))
+
+    if backtest.benchmark_ticker:
+        bench_rows = get_prices(
+            db, backtest.benchmark_ticker, backtest.start_date, backtest.end_date
+        )
+        if not bench_rows:
+            # Validation should have caught this, but if recompute runs after
+            # benchmark prices were deleted we just clear the benchmark fields.
+            log.warning(
+                "benchmark %s has no prices in [%s, %s]; clearing benchmark metrics",
+                backtest.benchmark_ticker,
+                backtest.start_date,
+                backtest.end_date,
+            )
+            _clear_benchmark_metrics(backtest)
+            return
+
+        bench_pairs = [(r.date, float(r.adj_close)) for r in bench_rows]
+        bench_series = metrics.build_benchmark_series(
+            benchmark_prices=bench_pairs,
+            portfolio_dates=daily_dates,
+            initial_cash=float(backtest.initial_cash),
+        )
+        bench = metrics.benchmark_metrics(
+            portfolio_values=daily_total_values,
+            benchmark_values=bench_series,
+            period_start=backtest.start_date,
+            period_end=backtest.end_date,
+            risk_free_rate=rf,
+        )
+        backtest.benchmark_total_return = Decimal(str(bench.benchmark_total_return))
+        backtest.benchmark_annualized_return = Decimal(
+            str(bench.benchmark_annualized_return)
+        )
+        backtest.alpha = Decimal(str(bench.alpha))
+        backtest.beta = Decimal(str(bench.beta))
+        backtest.information_ratio = Decimal(str(bench.information_ratio))
+        backtest.tracking_error = Decimal(str(bench.tracking_error))
+    else:
+        _clear_benchmark_metrics(backtest)
+
+
+def _clear_benchmark_metrics(backtest: Backtest) -> None:
+    backtest.benchmark_total_return = None
+    backtest.benchmark_annualized_return = None
+    backtest.alpha = None
+    backtest.beta = None
+    backtest.information_ratio = None
+    backtest.tracking_error = None
+
+
 def _validate(db: Session, req: BacktestCreate) -> dict[str, Asset]:
     """Returns ticker → Asset map for the validated input."""
+    tickers_to_check = list(req.tickers)
+    if req.benchmark_ticker and req.benchmark_ticker not in tickers_to_check:
+        tickers_to_check.append(req.benchmark_ticker)
+
     rows = list(
-        db.scalars(select(Asset).where(Asset.ticker.in_(req.tickers)))
+        db.scalars(select(Asset).where(Asset.ticker.in_(tickers_to_check)))
     )
     found = {a.ticker: a for a in rows}
     missing = [t for t in req.tickers if t not in found]
@@ -119,12 +240,25 @@ def _validate(db: Session, req: BacktestCreate) -> dict[str, Asset]:
             code="insufficient_coverage",
         )
 
-    if req.benchmark_ticker and req.benchmark_ticker not in found:
-        log.warning(
-            "benchmark_ticker %s has no asset row; persisting anyway "
-            "(Stage 3 will require coverage)",
-            req.benchmark_ticker,
+    if req.benchmark_ticker:
+        bench_asset = found.get(req.benchmark_ticker)
+        bench_earliest = (
+            earliest_price_date(db, bench_asset.id) if bench_asset else None
         )
+        bench_latest = (
+            latest_price_date(db, bench_asset.id) if bench_asset else None
+        )
+        if (
+            bench_asset is None
+            or bench_earliest is None
+            or bench_latest is None
+            or bench_earliest > req.start_date
+            or bench_latest < req.end_date
+        ):
+            raise ValidationError(
+                f"insufficient price coverage for benchmark: {req.benchmark_ticker}",
+                code="insufficient_benchmark_coverage",
+            )
 
     if len(trading_days(req.start_date, req.end_date)) < 2:
         raise ValidationError(
@@ -141,7 +275,12 @@ def _load_prices(
     fetch_start: date,
     fetch_end: date,
 ) -> dict[str, list[PriceBar]]:
-    """Pull adj_close series for each ticker, including pre-buffer for forward-fill."""
+    """Pull adj_close series for each ticker, including pre-buffer for forward-fill.
+
+    Excludes the benchmark ticker from the price master so the engine doesn't
+    treat it as a tradable asset; benchmark prices are loaded separately by the
+    metrics step.
+    """
     asset_ids = [a.id for a in asset_map.values()]
     rows = list(
         db.scalars(

@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     admin_token: str = Field(default="dev-only-token", alias="ADMIN_TOKEN")
     environment: str = Field(default="development", alias="ENVIRONMENT")
+    risk_free_rate: float = Field(default=0.0, alias="QV_RISK_FREE_RATE")
 
     @property
     def cors_origins_list(self) -> list[str]:

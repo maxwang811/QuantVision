@@ -45,6 +45,16 @@ class BacktestOut(BaseModel):
     initial_cash: float
     final_value: float | None
     total_return: float | None
+    annualized_return: float | None = None
+    volatility: float | None = None
+    sharpe_ratio: float | None = None
+    max_drawdown: float | None = None
+    benchmark_total_return: float | None = None
+    benchmark_annualized_return: float | None = None
+    alpha: float | None = None
+    beta: float | None = None
+    information_ratio: float | None = None
+    tracking_error: float | None = None
     start_date: date
     end_date: date
     transaction_cost_bps: int
@@ -81,6 +91,13 @@ class PortfolioValuePoint(BaseModel):
     total_value: float
 
 
+class BenchmarkPoint(BaseModel):
+    date: date
+    value: float
+
+
 class BacktestEquityCurveOut(BaseModel):
     backtest_id: UUID
     points: list[PortfolioValuePoint]
+    benchmark: list[BenchmarkPoint] | None = None
+    benchmark_ticker: str | None = None
