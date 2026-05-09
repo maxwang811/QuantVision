@@ -40,4 +40,4 @@ Then open <http://localhost:3000>.
 
 ## Status
 
-Stage 2 — Backtesting engine. Buy-and-hold and monthly-rebalance strategies, T+1 close fills, basis-point transaction costs, full trade + daily portfolio-value persistence, four `/api/backtests` endpoints. Risk metrics (Sharpe, max drawdown, CAGR) and the frontend dashboard are next.
+Stage 4 — Frontend dashboard. Stages 1–3 deliver data ingestion, the event-driven backtest engine (buy-and-hold, monthly-rebalance), and full risk metrics (Sharpe, max drawdown, CAGR, alpha, beta, information ratio). Stage 4 adds the Next.js dashboard: portfolio builder, strategy selector, equity curve and drawdown charts, metrics grid, and trade history — all wired to `/api/backtests`. Forecasting (Stage 5), ML strategies (Stage 6), and experiment tracking (Stage 7) are next.
