@@ -6,6 +6,8 @@ from app.models.base import Base
 from app.models.forecast import Forecast
 from app.models.forecast_distribution_bin import ForecastDistributionBin
 from app.models.forecast_path import ForecastPath
+from app.models.model_prediction import ModelPrediction
+from app.models.model_run import ModelRun
 from app.models.portfolio_value import PortfolioValue
 from app.models.price import PriceHistory
 from app.models.trade import Trade
@@ -17,6 +19,8 @@ __all__ = [
     "Forecast",
     "ForecastDistributionBin",
     "ForecastPath",
+    "ModelPrediction",
+    "ModelRun",
     "PortfolioValue",
     "PriceHistory",
     "Trade",

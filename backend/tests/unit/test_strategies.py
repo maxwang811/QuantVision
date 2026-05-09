@@ -4,10 +4,11 @@ import pytest
 
 from app.core.errors import ValidationError
 from app.core.time import is_month_end, trading_days
-from app.services.backtest.context import BacktestContext
+from app.services.backtest.context import BacktestContext, PriceBar
 from app.services.backtest.portfolio import Portfolio
 from app.services.backtest.strategies import STRATEGY_REGISTRY, build_strategy
 from app.services.backtest.strategies.buy_hold import BuyAndHold
+from app.services.backtest.strategies.ranking import MLRanking, MomentumRanking
 from app.services.backtest.strategies.rebalance import MonthlyRebalance
 
 
@@ -16,6 +17,21 @@ def _ctx(d: date, all_days: list[date]) -> BacktestContext:
         date=d,
         portfolio=Portfolio(cash=10000.0),
         prices_so_far={},
+        all_trading_days=all_days,
+        params={},
+    )
+
+
+def _price_ctx(d: date, all_days: list[date]) -> BacktestContext:
+    idx = all_days.index(d)
+    return BacktestContext(
+        date=d,
+        portfolio=Portfolio(cash=10000.0),
+        prices_so_far={
+            "A": [PriceBar(day, 100.0 + i) for i, day in enumerate(all_days[: idx + 1])],
+            "B": [PriceBar(day, 100.0 - 0.1 * i) for i, day in enumerate(all_days[: idx + 1])],
+            "C": [PriceBar(day, 100.0 + 0.2 * i) for i, day in enumerate(all_days[: idx + 1])],
+        },
         all_trading_days=all_days,
         params={},
     )
@@ -53,12 +69,17 @@ def test_monthly_rebalance_emits_first_day_and_each_month_end():
 def test_registry_round_trip():
     assert "buy_and_hold" in STRATEGY_REGISTRY
     assert "monthly_rebalance" in STRATEGY_REGISTRY
+    assert "momentum" in STRATEGY_REGISTRY
+    assert "ml_ranking" in STRATEGY_REGISTRY
 
     s = build_strategy("buy_and_hold", {"target_weights": {"SPY": 1.0}})
     assert isinstance(s, BuyAndHold)
 
     s = build_strategy("monthly_rebalance", {"target_weights": {"SPY": 1.0}})
     assert isinstance(s, MonthlyRebalance)
+
+    s = build_strategy("momentum", {"target_weights": {"A": 0.5, "B": 0.5}})
+    assert isinstance(s, MomentumRanking)
 
 
 def test_unknown_strategy_raises_validation_error():
@@ -78,3 +99,34 @@ def test_is_month_end_canary():
     # April should be flagged.
     march = [d for d in fired if d.month == 3]
     assert len(march) == 1
+
+
+def test_momentum_ranking_holds_top_n_and_zeroes_others():
+    days = trading_days(date(2024, 1, 2), date(2024, 4, 30))
+    s = MomentumRanking(target_weights={"A": 1 / 3, "B": 1 / 3, "C": 1 / 3}, top_n=2)
+
+    orders = s.on_day(_price_ctx(days[80], days))
+    weights = {o.ticker: o.target_weight for o in orders}
+    assert weights["A"] == pytest.approx(0.5)
+    assert weights["C"] == pytest.approx(0.5)
+    assert weights["B"] == pytest.approx(0.0)
+
+
+def test_ml_ranking_uses_latest_available_prediction_scores():
+    days = trading_days(date(2024, 1, 2), date(2024, 3, 29))
+    scores = {
+        days[0]: {"A": 0.1, "B": 0.9, "C": 0.4},
+        days[20]: {"A": 0.8, "B": 0.2, "C": 0.7},
+    }
+    s = MLRanking(
+        target_weights={"A": 1 / 3, "B": 1 / 3, "C": 1 / 3},
+        prediction_scores=scores,
+        top_n=2,
+    )
+
+    first = {o.ticker: o.target_weight for o in s.on_day(_ctx(days[0], days))}
+    assert first == {"A": 0.0, "B": 0.5, "C": 0.5}
+
+    month_end = next(d for d in days if is_month_end(d, days))
+    second = {o.ticker: o.target_weight for o in s.on_day(_ctx(month_end, days))}
+    assert second == {"A": 0.5, "B": 0.0, "C": 0.5}

@@ -27,8 +27,7 @@ const STRATEGIES: StrategyOption[] = [
     value: "momentum",
     label: "Momentum",
     description: "Rank assets by trailing return, hold the top N.",
-    enabled: false,
-    hint: "Coming Stage 5",
+    enabled: true,
   },
   {
     value: "ma_crossover",
@@ -41,8 +40,7 @@ const STRATEGIES: StrategyOption[] = [
     value: "ml_ranking",
     label: "ML Ranking",
     description: "ML model ranks assets by predicted outperformance.",
-    enabled: false,
-    hint: "Coming Stage 6",
+    enabled: true,
   },
 ];
 

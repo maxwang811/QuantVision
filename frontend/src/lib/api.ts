@@ -73,8 +73,11 @@ export type PriceSeries = z.infer<typeof PriceSeries>;
 export const Health = z.object({ status: z.string(), db: z.boolean() });
 export type Health = z.infer<typeof Health>;
 
-export const StrategyName = z.enum(["buy_and_hold", "monthly_rebalance"]);
+export const StrategyName = z.enum(["buy_and_hold", "monthly_rebalance", "momentum", "ml_ranking"]);
 export type StrategyName = z.infer<typeof StrategyName>;
+
+export const SelectedModel = z.enum(["logistic_regression", "xgboost"]);
+export type SelectedModel = z.infer<typeof SelectedModel>;
 
 export const BacktestCreate = z.object({
   name: z.string().max(128).nullable().optional(),
@@ -86,6 +89,7 @@ export const BacktestCreate = z.object({
   end_date: z.string(),
   transaction_cost_bps: z.number().int().min(0).max(1000),
   benchmark_ticker: z.string().max(16).nullable().optional(),
+  strategy_params: z.record(z.unknown()).optional(),
 });
 export type BacktestCreate = z.infer<typeof BacktestCreate>;
 
@@ -111,11 +115,63 @@ export const BacktestOut = z.object({
   end_date: z.string(),
   transaction_cost_bps: z.number(),
   benchmark_ticker: z.string().nullable(),
+  model_run_id: z.string().uuid().nullable().optional(),
   error_message: z.string().nullable(),
   created_at: z.string(),
   completed_at: z.string().nullable(),
 });
 export type BacktestOut = z.infer<typeof BacktestOut>;
+
+export const ModelRunCreate = z.object({
+  name: z.string().max(128).nullable().optional(),
+  tickers: z.array(z.string()).min(1).max(50),
+  benchmark_ticker: z.string().max(16).optional(),
+  start_date: z.string(),
+  end_date: z.string(),
+  label_horizon_days: z.number().int().min(5).max(126).optional(),
+  training_lookback_days: z.number().int().min(126).max(5040).optional(),
+  selected_model: SelectedModel.optional(),
+  random_seed: z.number().int().min(0).optional(),
+});
+export type ModelRunCreate = z.infer<typeof ModelRunCreate>;
+
+export const ModelRunOut = z.object({
+  id: z.string().uuid(),
+  name: z.string().nullable(),
+  tickers: z.array(z.string()),
+  benchmark_ticker: z.string(),
+  start_date: z.string(),
+  end_date: z.string(),
+  label_horizon_days: z.number(),
+  training_lookback_days: z.number(),
+  selected_model: z.string(),
+  params: z.record(z.unknown()),
+  metrics: z.record(z.unknown()).nullable(),
+  status: z.string(),
+  error_message: z.string().nullable(),
+  created_at: z.string(),
+  completed_at: z.string().nullable(),
+});
+export type ModelRunOut = z.infer<typeof ModelRunOut>;
+
+export const ModelPredictionOut = z.object({
+  id: z.string().uuid(),
+  date: z.string(),
+  ticker: z.string(),
+  model_name: z.string(),
+  score: z.number(),
+  rank: z.number(),
+  label: z.number().nullable(),
+  forward_return: z.number().nullable(),
+  benchmark_forward_return: z.number().nullable(),
+});
+export type ModelPredictionOut = z.infer<typeof ModelPredictionOut>;
+
+export const ModelPredictionsOut = z.object({
+  model_run_id: z.string().uuid(),
+  predictions: z.array(ModelPredictionOut),
+});
+export type ModelPredictionsOut = z.infer<typeof ModelPredictionsOut>;
 
 export const TradeOut = z.object({
   id: z.string().uuid(),
@@ -284,6 +340,21 @@ export const api = {
     apiFetch<unknown>(`/api/backtests/${encodeURIComponent(id)}/portfolio_values`).then((d) =>
       BacktestEquityCurveOut.parse(d),
     ),
+  createModelRun: (payload: ModelRunCreate) =>
+    apiFetch<unknown>("/api/model-runs", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }).then((d) => ModelRunOut.parse(d)),
+  getModelRun: (id: string) =>
+    apiFetch<unknown>(`/api/model-runs/${encodeURIComponent(id)}`).then((d) =>
+      ModelRunOut.parse(d),
+    ),
+  getModelPredictions: (id: string, modelName?: SelectedModel) => {
+    const qs = modelName ? `?model_name=${encodeURIComponent(modelName)}` : "";
+    return apiFetch<unknown>(`/api/model-runs/${encodeURIComponent(id)}/predictions${qs}`).then(
+      (d) => ModelPredictionsOut.parse(d),
+    );
+  },
   runForecast: (payload: ForecastCreate) =>
     apiFetch<unknown>("/api/forecasts", {
       method: "POST",

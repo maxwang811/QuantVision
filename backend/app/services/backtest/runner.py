@@ -11,6 +11,7 @@ import logging
 import uuid
 from datetime import date, timedelta
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -24,6 +25,7 @@ from app.models.portfolio_value import PortfolioValue
 from app.models.price import PriceHistory
 from app.models.trade import Trade
 from app.schemas.backtest import BacktestCreate
+from app.schemas.ml import ModelRunCreate
 from app.services.backtest import engine, metrics
 from app.services.backtest.context import PriceBar
 from app.services.backtest.strategies import build_strategy
@@ -31,6 +33,11 @@ from app.services.data.price_repo import (
     earliest_price_date,
     get_prices,
     latest_price_date,
+)
+from app.services.ml.runner import (
+    get_model_run_or_404,
+    load_prediction_score_map,
+    run_model_training,
 )
 
 log = logging.getLogger(__name__)
@@ -43,11 +50,16 @@ def run_backtest(db: Session, req: BacktestCreate) -> Backtest:
     asset_map = _validate(db, req)
     # Drop the benchmark from the trading universe; metrics load it separately.
     trading_assets = {t: asset_map[t] for t in req.tickers}
+    target_weights = dict(zip(req.tickers, req.weights, strict=True))
+    strategy_params = _normalize_strategy_params(req)
+    model_prediction_scores: dict[date, dict[str, float]] | None = None
+    if req.strategy == "ml_ranking":
+        model_prediction_scores = _prepare_ml_model_run(db, req, strategy_params)
 
     prices_master = _load_prices(
         db,
         trading_assets,
-        req.start_date - timedelta(days=PRE_BUFFER_DAYS),
+        req.start_date - _strategy_prebuffer(req.strategy, strategy_params),
         req.end_date,
     )
 
@@ -55,7 +67,7 @@ def run_backtest(db: Session, req: BacktestCreate) -> Backtest:
         id=uuid.uuid4(),
         name=req.name,
         strategy=req.strategy,
-        params={"target_weights": dict(zip(req.tickers, req.weights, strict=True))},
+        params=_backtest_params(target_weights, strategy_params),
         initial_cash=Decimal(str(req.initial_cash)),
         start_date=req.start_date,
         end_date=req.end_date,
@@ -67,8 +79,13 @@ def run_backtest(db: Session, req: BacktestCreate) -> Backtest:
     db.commit()
 
     try:
-        target_weights = dict(zip(req.tickers, req.weights, strict=True))
-        strategy = build_strategy(req.strategy, {"target_weights": target_weights})
+        strategy_kwargs = _strategy_kwargs(
+            req.strategy,
+            target_weights,
+            strategy_params,
+            model_prediction_scores,
+        )
+        strategy = build_strategy(req.strategy, strategy_kwargs)
 
         result = engine.run(
             start_date=req.start_date,
@@ -204,6 +221,164 @@ def _clear_benchmark_metrics(backtest: Backtest) -> None:
     backtest.beta = None
     backtest.information_ratio = None
     backtest.tracking_error = None
+
+
+def _normalize_strategy_params(req: BacktestCreate) -> dict[str, Any]:
+    raw = dict(req.strategy_params or {})
+    if req.strategy in {"buy_and_hold", "monthly_rebalance"}:
+        return raw
+
+    top_n = int(raw.get("top_n", 5))
+    if top_n < 1:
+        raise ValidationError("top_n must be at least 1", code="invalid_strategy_params")
+    top_n = min(top_n, len(req.tickers))
+
+    frequency = str(raw.get("rebalance_frequency", "monthly"))
+    if frequency != "monthly":
+        raise ValidationError(
+            "only monthly rebalance_frequency is supported",
+            code="invalid_strategy_params",
+        )
+
+    out: dict[str, Any] = {
+        "top_n": top_n,
+        "rebalance_frequency": frequency,
+    }
+    if req.strategy == "momentum":
+        lookback_days = int(raw.get("lookback_days", raw.get("momentum_lookback_days", 63)))
+        if lookback_days < 5 or lookback_days > 504:
+            raise ValidationError(
+                "momentum lookback_days must be between 5 and 504",
+                code="invalid_strategy_params",
+            )
+        out["lookback_days"] = lookback_days
+        return out
+
+    label_horizon_days = int(raw.get("label_horizon_days", 20))
+    training_lookback_days = int(raw.get("training_lookback_days", 756))
+    selected_model = str(raw.get("selected_model", "xgboost"))
+    if selected_model not in {"logistic_regression", "xgboost"}:
+        raise ValidationError(
+            f"unknown selected_model: {selected_model}",
+            code="invalid_strategy_params",
+        )
+    if label_horizon_days < 5 or label_horizon_days > 126:
+        raise ValidationError(
+            "label_horizon_days must be between 5 and 126",
+            code="invalid_strategy_params",
+        )
+    if training_lookback_days < 126 or training_lookback_days > 5040:
+        raise ValidationError(
+            "training_lookback_days must be between 126 and 5040",
+            code="invalid_strategy_params",
+        )
+
+    out.update(
+        {
+            "label_horizon_days": label_horizon_days,
+            "training_lookback_days": training_lookback_days,
+            "selected_model": selected_model,
+            "random_seed": int(raw.get("random_seed", 7)),
+        }
+    )
+    if raw.get("model_run_id"):
+        out["model_run_id"] = str(raw["model_run_id"])
+    return out
+
+
+def _backtest_params(
+    target_weights: dict[str, float], strategy_params: dict[str, Any]
+) -> dict[str, Any]:
+    params: dict[str, Any] = {"target_weights": target_weights}
+    if strategy_params:
+        params["strategy_params"] = strategy_params
+    return params
+
+
+def _prepare_ml_model_run(
+    db: Session,
+    req: BacktestCreate,
+    strategy_params: dict[str, Any],
+) -> dict[date, dict[str, float]]:
+    selected_model = strategy_params["selected_model"]
+    model_run_id = strategy_params.get("model_run_id")
+    if model_run_id:
+        try:
+            run_id = uuid.UUID(str(model_run_id))
+        except ValueError as e:
+            raise ValidationError(
+                f"invalid model_run_id: {model_run_id}",
+                code="invalid_strategy_params",
+            ) from e
+        model_run = get_model_run_or_404(db, run_id)
+        if model_run.status != "completed":
+            raise ValidationError(
+                f"model run {run_id} is not completed (status={model_run.status})",
+                code="model_run_not_completed",
+            )
+    else:
+        model_req = ModelRunCreate(
+            name=f"{req.name or 'Backtest'} ML ranking",
+            tickers=req.tickers,
+            benchmark_ticker=req.benchmark_ticker or "SPY",
+            start_date=req.start_date,
+            end_date=req.end_date,
+            label_horizon_days=strategy_params["label_horizon_days"],
+            training_lookback_days=strategy_params["training_lookback_days"],
+            selected_model=selected_model,
+            random_seed=strategy_params["random_seed"],
+        )
+        model_run = run_model_training(db, model_req)
+        if model_run.status != "completed":
+            raise ValidationError(
+                f"auto-created model run failed: {model_run.error_message}",
+                code="model_run_failed",
+            )
+
+    strategy_params["model_run_id"] = str(model_run.id)
+    strategy_params["benchmark_ticker"] = model_run.benchmark_ticker
+    scores = load_prediction_score_map(
+        db, model_run.id, selected_model, req.start_date, req.end_date
+    )
+    if not scores:
+        raise ValidationError(
+            f"model run {model_run.id} has no {selected_model} predictions in the backtest window",
+            code="model_predictions_unavailable",
+        )
+    return scores
+
+
+def _strategy_prebuffer(strategy: str, strategy_params: dict[str, Any]) -> timedelta:
+    if strategy == "momentum":
+        lookback = int(strategy_params.get("lookback_days", 63))
+        return timedelta(days=int(lookback * 365 / 252) + 30)
+    return timedelta(days=PRE_BUFFER_DAYS)
+
+
+def _strategy_kwargs(
+    strategy: str,
+    target_weights: dict[str, float],
+    strategy_params: dict[str, Any],
+    model_prediction_scores: dict[date, dict[str, float]] | None,
+) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {"target_weights": target_weights}
+    if strategy == "momentum":
+        kwargs.update(
+            {
+                "top_n": strategy_params["top_n"],
+                "lookback_days": strategy_params["lookback_days"],
+                "rebalance_frequency": strategy_params["rebalance_frequency"],
+            }
+        )
+    elif strategy == "ml_ranking":
+        kwargs.update(
+            {
+                "prediction_scores": model_prediction_scores or {},
+                "top_n": strategy_params["top_n"],
+                "rebalance_frequency": strategy_params["rebalance_frequency"],
+            }
+        )
+    return kwargs
 
 
 def _validate(db: Session, req: BacktestCreate) -> dict[str, Asset]:

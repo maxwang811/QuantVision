@@ -40,4 +40,4 @@ Then open <http://localhost:3000>.
 
 ## Status
 
-Stage 4 — Frontend dashboard. Stages 1–3 deliver data ingestion, the event-driven backtest engine (buy-and-hold, monthly-rebalance), and full risk metrics (Sharpe, max drawdown, CAGR, alpha, beta, information ratio). Stage 4 adds the Next.js dashboard: portfolio builder, strategy selector, equity curve and drawdown charts, metrics grid, and trade history — all wired to `/api/backtests`. Forecasting (Stage 5), ML strategies (Stage 6), and experiment tracking (Stage 7) are next.
+Stage 6 — ML ranking strategies. Stages 1–5 deliver data ingestion, event-driven backtesting, risk metrics, the Next.js dashboard, and Monte Carlo/bootstrap forecasting. Stage 6 adds walk-forward Logistic Regression/XGBoost ranking, persisted model runs and predictions, momentum and ML ranking backtests, and frontend controls for ranking strategy parameters. Experiment tracking (Stage 7) is next.

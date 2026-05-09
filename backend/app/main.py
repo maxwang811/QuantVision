@@ -8,6 +8,7 @@ from app.api import (
     routes_backtest,
     routes_forecast,
     routes_health,
+    routes_ml,
     routes_prices,
 )
 from app.config import get_settings
@@ -46,6 +47,7 @@ def create_app() -> FastAPI:
     app.include_router(routes_prices.router, prefix="/api", tags=["prices"])
     app.include_router(routes_backtest.router, prefix="/api", tags=["backtests"])
     app.include_router(routes_forecast.router, prefix="/api", tags=["forecasts"])
+    app.include_router(routes_ml.router, prefix="/api", tags=["ml"])
 
     return app
 

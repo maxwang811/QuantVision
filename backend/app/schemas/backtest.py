@@ -1,10 +1,11 @@
 from datetime import date, datetime
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-StrategyName = Literal["buy_and_hold", "monthly_rebalance"]
+StrategyName = Literal["buy_and_hold", "monthly_rebalance", "momentum", "ml_ranking"]
+SelectedModel = Literal["logistic_regression", "xgboost"]
 
 
 class BacktestCreate(BaseModel):
@@ -17,6 +18,7 @@ class BacktestCreate(BaseModel):
     end_date: date
     transaction_cost_bps: int = Field(default=10, ge=0, le=1000)
     benchmark_ticker: str | None = Field(default=None, max_length=16)
+    strategy_params: dict[str, Any] | None = None
 
     @model_validator(mode="after")
     def _check(self) -> "BacktestCreate":
@@ -30,6 +32,8 @@ class BacktestCreate(BaseModel):
             raise ValueError("start_date must be before end_date")
         # Normalize tickers up-front so downstream comparisons are case-insensitive.
         self.tickers = [t.upper() for t in self.tickers]
+        if len(set(self.tickers)) != len(self.tickers):
+            raise ValueError("tickers must be unique")
         if self.benchmark_ticker:
             self.benchmark_ticker = self.benchmark_ticker.upper()
         return self
@@ -59,9 +63,25 @@ class BacktestOut(BaseModel):
     end_date: date
     transaction_cost_bps: int
     benchmark_ticker: str | None
+    model_run_id: UUID | None = None
     error_message: str | None
     created_at: datetime
     completed_at: datetime | None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _populate_model_run_id(cls, data):
+        if hasattr(data, "params"):
+            params = data.params or {}
+            strategy_params = params.get("strategy_params") or {}
+            d = {
+                k: getattr(data, k)
+                for k in cls.model_fields
+                if hasattr(data, k) and k != "model_run_id"
+            }
+            d["model_run_id"] = strategy_params.get("model_run_id")
+            return d
+        return data
 
 
 class TradeOut(BaseModel):
