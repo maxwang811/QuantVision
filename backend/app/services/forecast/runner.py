@@ -29,6 +29,7 @@ from app.models.forecast_path import ForecastPath
 from app.models.price import PriceHistory
 from app.models.trade import Trade
 from app.schemas.forecast import ForecastCreate
+from app.services.data.returns import build_log_returns_matrix
 from app.services.forecast import aggregation, engine, ml
 
 log = logging.getLogger(__name__)
@@ -91,7 +92,7 @@ def run_forecast(db: Session, req: ForecastCreate) -> Forecast:
 
     # Fetch lookback returns.
     lookback_start_calendar = as_of_date - _calendar_days_for_lookback(req.lookback_days)
-    returns_matrix, common_dates = _build_returns_matrix(
+    returns_matrix, common_dates = build_log_returns_matrix(
         db, [asset_map[t] for t in tickers], lookback_start_calendar, as_of_date
     )
     if returns_matrix.shape[0] < int(req.lookback_days * 0.95):
@@ -174,7 +175,7 @@ def run_forecast(db: Session, req: ForecastCreate) -> Forecast:
 
         prob_beat = None
         if req.benchmark_ticker:
-            bench_returns_matrix, _ = _build_returns_matrix(
+            bench_returns_matrix, _ = build_log_returns_matrix(
                 db, [asset_map[req.benchmark_ticker]], lookback_start_calendar, as_of_date
             )
             if bench_returns_matrix.shape[0] >= int(req.lookback_days * 0.95):
@@ -271,51 +272,6 @@ def _latest_common_price_date(db: Session, assets: list[Asset]) -> date | None:
             return None
         latest_dates.append(d)
     return min(latest_dates)
-
-
-def _build_returns_matrix(
-    db: Session,
-    assets: list[Asset],
-    start: date,
-    end: date,
-) -> tuple[np.ndarray, list[date]]:
-    """Pull adj_close per asset, intersect on common dates, compute log-returns.
-
-    Returns (returns_matrix shape (T-1, A), common_dates length T).
-    """
-    asset_ids = [a.id for a in assets]
-    rows = list(
-        db.scalars(
-            select(PriceHistory)
-            .where(PriceHistory.asset_id.in_(asset_ids))
-            .where(PriceHistory.date >= start)
-            .where(PriceHistory.date <= end)
-            .order_by(PriceHistory.date)
-        )
-    )
-
-    by_asset: dict[uuid.UUID, dict[date, float]] = defaultdict(dict)
-    for r in rows:
-        by_asset[r.asset_id][r.date] = float(r.adj_close)
-
-    if not by_asset or any(a.id not in by_asset for a in assets):
-        return np.empty((0, len(assets))), []
-
-    common = set(by_asset[assets[0].id].keys())
-    for a in assets[1:]:
-        common &= set(by_asset[a.id].keys())
-    if not common:
-        return np.empty((0, len(assets))), []
-
-    common_dates = sorted(common)
-    price_matrix = np.array(
-        [[by_asset[a.id][d] for a in assets] for d in common_dates],
-        dtype=np.float64,
-    )
-    if price_matrix.shape[0] < 2 or np.any(price_matrix <= 0):
-        return np.empty((0, len(assets))), []
-    log_returns = np.diff(np.log(price_matrix), axis=0)
-    return log_returns, common_dates
 
 
 def _seed_from_backtest(

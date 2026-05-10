@@ -2,6 +2,8 @@
 
 import { BacktestForm } from "@/components/backtest/BacktestForm";
 import { BacktestResults } from "@/components/backtest/BacktestResults";
+import { OptimizerPanel } from "@/components/backtest/OptimizerPanel";
+import type { PortfolioRow } from "@/components/backtest/PortfolioWeightEditor";
 import type { BacktestOut } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -20,7 +22,8 @@ function PageHeader() {
       <h1 className="text-2xl font-semibold tracking-tight">Backtest</h1>
       <p className="text-sm text-muted">
         Build a portfolio, pick a strategy, and replay it on historical prices. Metrics, equity
-        curve, drawdown, and trades all render below after the run completes.
+        curve, drawdown, and trades all render below after the run completes. Optionally run the
+        portfolio optimizer above to seed the weights.
       </p>
     </header>
   );
@@ -31,6 +34,7 @@ function BacktestPageInner() {
   const params = useSearchParams();
   const urlId = params.get("id");
   const [latest, setLatest] = useState<BacktestOut | null>(null);
+  const [presetRows, setPresetRows] = useState<PortfolioRow[] | undefined>(undefined);
 
   const activeId = latest?.id ?? urlId ?? null;
 
@@ -45,7 +49,9 @@ function BacktestPageInner() {
     <div className="space-y-8">
       <PageHeader />
 
-      <BacktestForm onSuccess={onSuccess} />
+      <OptimizerPanel onApply={(rows) => setPresetRows(rows)} />
+
+      <BacktestForm onSuccess={onSuccess} defaultRows={presetRows} />
 
       {activeId && (
         <section className="space-y-3">

@@ -1,0 +1,33 @@
+services:
+  db:
+    restart: always
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      ADMIN_TOKEN: ${ADMIN_TOKEN}
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-4}
+    volumes: []
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    restart: always
+    environment:
+      NODE_ENV: production
+    volumes: []
+    depends_on:
+      backend:
+        condition: service_healthy

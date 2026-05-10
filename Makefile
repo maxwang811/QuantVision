@@ -1,4 +1,4 @@
-.PHONY: help dev down logs migrate seed ingest test test-backend test-frontend lint typegen
+.PHONY: help dev down logs migrate seed ingest test test-backend test-frontend lint typegen prod-up prod-down prod-logs smoke
 
 help:
 	@echo "QuantVision dev commands:"
@@ -13,6 +13,10 @@ help:
 	@echo "  make test-frontend- vitest + playwright"
 	@echo "  make lint         - ruff + mypy + eslint + tsc"
 	@echo "  make typegen      - regenerate TS types from FastAPI OpenAPI"
+	@echo "  make prod-up      - build + start prod images via docker-compose.prod.yml overlay"
+	@echo "  make prod-down    - stop the prod stack"
+	@echo "  make prod-logs    - tail prod backend + frontend logs"
+	@echo "  make smoke        - run end-to-end smoke harness against the dev stack"
 
 dev:
 	docker-compose up --build
@@ -47,3 +51,15 @@ lint:
 
 typegen:
 	cd frontend && npm run typegen
+
+prod-up:
+	docker-compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+prod-down:
+	docker-compose -f docker-compose.yml -f docker-compose.prod.yml down
+
+prod-logs:
+	docker-compose -f docker-compose.yml -f docker-compose.prod.yml logs -f backend frontend
+
+smoke:
+	./scripts/smoke.sh

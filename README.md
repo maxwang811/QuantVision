@@ -10,9 +10,11 @@ QuantVision lets users build portfolios, backtest investment strategies on histo
 
 **Forecasting** — Simulate thousands of possible 1-month to 5-year futures using parametric Monte Carlo, block bootstrap, or an ML-adjusted drift model. Reports P10/P50/P90 outcomes, probability of loss, and probability of beating SPY.
 
-**ML pipeline** — Walk-forward XGBoost classifier predicting next-20-day asset outperformance vs SPY. Trained with strict no-look-ahead discipline; predictions persist to Postgres and feed the ML ranking strategy.
+**ML pipeline** — Walk-forward XGBoost classifier predicting next-20-day asset outperformance vs SPY. Trained with strict no-look-ahead discipline; predictions persist to Postgres and feed the ML ranking strategy. An automated leakage-detection test (`tests/unit/test_no_leakage.py`) verifies the temporal barrier with a poisoned-future probe.
 
-**Experiment tracking** — Every backtest and forecast is persisted; a comparison view overlays multiple equity curves and metric grids side by side.
+**Portfolio optimization** — Mean-variance / max-Sharpe optimizer (long-only, fully invested) with an efficient-frontier scatter visualization. `POST /api/optimize` returns the min-variance and max-Sharpe portfolios plus a 25-point frontier sweep. The frontend optimizer panel can populate the backtest form with one click.
+
+**Experiment tracking** — Every backtest and forecast is persisted; a comparison view overlays multiple equity curves and metric grids side by side. Bounded parameter sweeps and CSV/JSON exports are wired through the same UI.
 
 ## Stack
 
@@ -25,13 +27,31 @@ QuantVision lets users build portfolios, backtest investment strategies on histo
 
 ```bash
 cp .env.example .env
-make dev          # starts Postgres + backend + frontend
+make dev          # starts Postgres + backend + frontend (dev images, --reload)
 make migrate      # apply database schema
 make seed         # populate ~510 tickers
 make ingest       # pull 5y of historical prices
 ```
 
 Then open <http://localhost:3000>.
+
+### End-to-end smoke check
+
+```bash
+make smoke        # boots stack, ingests SPY/AAPL/MSFT (~2y), hits every API endpoint
+```
+
+The smoke harness exercises the full backtest → forecast → sweep → compare → optimize pipeline and reports `PASS=N FAIL=M`.
+
+### Production images
+
+```bash
+cp .env.prod.example .env.prod   # fill in real secrets, real DATABASE_URL, real CORS_ORIGINS
+make prod-up                     # multi-stage builds, healthchecks, --workers 4 (no --reload)
+make prod-down
+```
+
+`NEXT_PUBLIC_API_URL` is baked into the frontend at build time — changing it requires `make prod-up` to rebuild.
 
 ## Documentation
 

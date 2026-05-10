@@ -456,6 +456,37 @@ export const ExperimentSweepRunsOut = z.object({
 });
 export type ExperimentSweepRunsOut = z.infer<typeof ExperimentSweepRunsOut>;
 
+export const FrontierPointOut = z.object({
+  expected_return: z.number(),
+  volatility: z.number(),
+  sharpe_ratio: z.number(),
+  weights: z.array(z.number()),
+});
+export type FrontierPointOut = z.infer<typeof FrontierPointOut>;
+
+export const OptimizationRequest = z.object({
+  tickers: z.array(z.string()).min(2).max(50),
+  lookback_days: z.number().int().min(252).max(5040).optional(),
+  risk_free_rate: z.number().min(0).max(0.25).optional(),
+  target_return: z.number().nullable().optional(),
+  as_of_date: z.string().nullable().optional(),
+  n_frontier_points: z.number().int().min(5).max(100).optional(),
+});
+export type OptimizationRequest = z.infer<typeof OptimizationRequest>;
+
+export const OptimizationResultOut = z.object({
+  tickers: z.array(z.string()),
+  risk_free_rate: z.number(),
+  n_observations: z.number(),
+  lookback_start: z.string(),
+  lookback_end: z.string(),
+  min_variance: FrontierPointOut,
+  max_sharpe: FrontierPointOut,
+  target_return: FrontierPointOut.nullable(),
+  frontier: z.array(FrontierPointOut),
+});
+export type OptimizationResultOut = z.infer<typeof OptimizationResultOut>;
+
 export const api = {
   health: () => apiFetch<Health>("/api/health").then((d) => Health.parse(d)),
   searchAssets: (q: string, limit = 20) =>
@@ -571,6 +602,11 @@ export const api = {
     ),
   exportSweepUrl: (id: string, format: "json" | "csv" = "json") =>
     apiUrl(`/api/exports/sweeps/${encodeURIComponent(id)}?format=${format}`),
+  optimize: (payload: OptimizationRequest) =>
+    apiFetch<unknown>("/api/optimize", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }).then((d) => OptimizationResultOut.parse(d)),
   exportCompare: async (payload: ExperimentCompareRequest, format: "json" | "csv") => {
     const res = await fetch(apiUrl(`/api/exports/compare?format=${format}`), {
       method: "POST",

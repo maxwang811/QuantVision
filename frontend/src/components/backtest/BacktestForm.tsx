@@ -9,9 +9,10 @@ import {
   type StrategyName,
 } from "@/lib/api";
 import { useMutation } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PortfolioWeightEditor, type PortfolioRow } from "./PortfolioWeightEditor";
 import { StrategySelector } from "./StrategySelector";
+import { validateBacktestPayload } from "./validateBacktest";
 
 const DEFAULT_ROWS: PortfolioRow[] = [
   { ticker: "SPY", weightPct: 50 },
@@ -21,10 +22,19 @@ const DEFAULT_ROWS: PortfolioRow[] = [
 
 interface Props {
   onSuccess: (bt: BacktestOut) => void;
+  /** When set, the form's portfolio rows are reset to this whenever the prop changes
+   *  (used by the optimizer panel to populate weights). */
+  defaultRows?: PortfolioRow[];
 }
 
-export function BacktestForm({ onSuccess }: Props) {
-  const [rows, setRows] = useState<PortfolioRow[]>(DEFAULT_ROWS);
+export function BacktestForm({ onSuccess, defaultRows }: Props) {
+  const [rows, setRows] = useState<PortfolioRow[]>(defaultRows ?? DEFAULT_ROWS);
+
+  useEffect(() => {
+    if (defaultRows && defaultRows.length > 0) {
+      setRows(defaultRows);
+    }
+  }, [defaultRows]);
   const [name, setName] = useState<string>("");
   const [strategy, setStrategy] = useState<StrategyName>("monthly_rebalance");
   const [initialCash, setInitialCash] = useState<number>(10_000);
@@ -37,95 +47,37 @@ export function BacktestForm({ onSuccess }: Props) {
   const [trainingLookbackDays, setTrainingLookbackDays] = useState<number>(756);
   const [labelHorizonDays, setLabelHorizonDays] = useState<number>(20);
 
-  const { localError, payload } = useMemo(() => {
-    const cleanRows = rows.filter((r) => r.ticker.trim().length > 0);
-    if (cleanRows.length === 0) {
-      return { localError: "Add at least one ticker.", payload: null };
-    }
-    const rankingStrategy = strategy === "momentum" || strategy === "ml_ranking";
-    const total = cleanRows.reduce((s, r) => s + r.weightPct, 0);
-    if (!rankingStrategy) {
-      if (Math.abs(total - 100) > 0.01) {
-        return { localError: `Weights must sum to 100% (currently ${total.toFixed(2)}%).`, payload: null };
-      }
-      if (cleanRows.some((r) => r.weightPct < 0)) {
-        return { localError: "Weights must be non-negative.", payload: null };
-      }
-    }
-    if (!(initialCash > 0)) {
-      return { localError: "Initial cash must be positive.", payload: null };
-    }
-    if (!startDate || !endDate) {
-      return { localError: "Pick start and end dates.", payload: null };
-    }
-    if (startDate >= endDate) {
-      return { localError: "End date must be after start date.", payload: null };
-    }
-    const seen = new Set<string>();
-    for (const r of cleanRows) {
-      const t = r.ticker.toUpperCase();
-      if (seen.has(t)) return { localError: `Duplicate ticker: ${t}`, payload: null };
-      seen.add(t);
-    }
-    if (rankingStrategy) {
-      if (!Number.isInteger(topN) || topN < 1) {
-        return { localError: "Top N must be at least 1.", payload: null };
-      }
-    }
-    if (strategy === "ml_ranking") {
-      if (!Number.isInteger(trainingLookbackDays) || trainingLookbackDays < 126 || trainingLookbackDays > 5040) {
-        return { localError: "Training lookback must be between 126 and 5040 trading days.", payload: null };
-      }
-      if (!Number.isInteger(labelHorizonDays) || labelHorizonDays < 5 || labelHorizonDays > 126) {
-        return { localError: "Label horizon must be between 5 and 126 trading days.", payload: null };
-      }
-    }
-    const weights = rankingStrategy
-      ? cleanRows.map(() => 1 / cleanRows.length)
-      : cleanRows.map((r) => r.weightPct / 100);
-    const effectiveTopN = Math.min(topN, cleanRows.length);
-    const built: BacktestCreate = {
-      name: name.trim() || null,
+  const { localError, payload } = useMemo(
+    () =>
+      validateBacktestPayload({
+        rows,
+        name,
+        strategy,
+        initialCash,
+        startDate,
+        endDate,
+        transactionCostBps,
+        benchmarkTicker,
+        topN,
+        selectedModel,
+        trainingLookbackDays,
+        labelHorizonDays,
+      }),
+    [
+      rows,
+      name,
       strategy,
-      tickers: cleanRows.map((r) => r.ticker.toUpperCase()),
-      weights,
-      initial_cash: initialCash,
-      start_date: startDate,
-      end_date: endDate,
-      transaction_cost_bps: transactionCostBps,
-      benchmark_ticker: benchmarkTicker.trim() ? benchmarkTicker.trim().toUpperCase() : null,
-    };
-    if (strategy === "momentum") {
-      built.strategy_params = {
-        top_n: effectiveTopN,
-        rebalance_frequency: "monthly",
-        lookback_days: 63,
-      };
-    }
-    if (strategy === "ml_ranking") {
-      built.strategy_params = {
-        top_n: effectiveTopN,
-        rebalance_frequency: "monthly",
-        selected_model: selectedModel,
-        training_lookback_days: trainingLookbackDays,
-        label_horizon_days: labelHorizonDays,
-      };
-    }
-    return { localError: null, payload: built };
-  }, [
-    rows,
-    name,
-    strategy,
-    initialCash,
-    startDate,
-    endDate,
-    transactionCostBps,
-    benchmarkTicker,
-    topN,
-    selectedModel,
-    trainingLookbackDays,
-    labelHorizonDays,
-  ]);
+      initialCash,
+      startDate,
+      endDate,
+      transactionCostBps,
+      benchmarkTicker,
+      topN,
+      selectedModel,
+      trainingLookbackDays,
+      labelHorizonDays,
+    ],
+  );
 
   const mutation = useMutation({
     mutationFn: (p: BacktestCreate) => api.runBacktest(p),
