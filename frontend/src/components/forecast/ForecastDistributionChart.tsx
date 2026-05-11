@@ -1,5 +1,7 @@
 "use client";
 
+import { ChartCard } from "@/components/ui/ChartCard";
+import { chartAxisTick, chartGridStroke, chartTooltipStyle } from "@/lib/chart-theme";
 import type { ForecastDistributionOut } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
 import { useMemo } from "react";
@@ -30,52 +32,48 @@ export function ForecastDistributionChart({ distribution }: Props) {
   );
 
   return (
-    <div className="rounded-lg border border-border bg-bg p-4">
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-sm font-semibold text-fg">Terminal distribution</h3>
-        <span className="text-xs text-muted">
-          P10 {formatCurrency(distribution.percentiles.p10)} / P90{" "}
-          {formatCurrency(distribution.percentiles.p90)}
-        </span>
-      </div>
-      <div className="h-72 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
-            <CartesianGrid stroke="rgb(var(--border))" strokeDasharray="3 3" />
-            <XAxis
-              dataKey="midpoint"
-              type="number"
-              tick={{ fill: "rgb(var(--muted))", fontSize: 11 }}
-              tickFormatter={(v) => formatCurrency(Number(v))}
-              minTickGap={40}
-              domain={["dataMin", "dataMax"]}
-            />
-            <YAxis tick={{ fill: "rgb(var(--muted))", fontSize: 11 }} width={56} />
-            <Tooltip
-              contentStyle={{
-                background: "rgb(var(--bg))",
-                border: "1px solid rgb(var(--border))",
-                borderRadius: 6,
-                fontSize: 12,
-              }}
-              labelFormatter={(_, rows) => rows?.[0]?.payload?.range ?? ""}
-              formatter={(v: number | string) => [Number(v).toLocaleString(), "Simulations"]}
-            />
-            <ReferenceLine
-              x={distribution.initial_value}
-              stroke="rgb(var(--negative))"
-              strokeDasharray="4 4"
-              label={{
-                value: "Initial",
-                fill: "rgb(var(--muted))",
-                fontSize: 11,
-                position: "top",
-              }}
-            />
-            <Bar dataKey="count" fill="rgb(var(--accent))" radius={[2, 2, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
+    <ChartCard
+      title="Terminal distribution"
+      meta={
+        <>
+          P10 <span className="font-mono text-fg">{formatCurrency(distribution.percentiles.p10)}</span>
+          {" · "}
+          P90 <span className="font-mono text-fg">{formatCurrency(distribution.percentiles.p90)}</span>
+        </>
+      }
+      bodyClassName="h-72"
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
+          <CartesianGrid stroke={chartGridStroke} strokeDasharray="3 3" />
+          <XAxis
+            dataKey="midpoint"
+            type="number"
+            tick={chartAxisTick}
+            tickFormatter={(v) => formatCurrency(Number(v))}
+            minTickGap={40}
+            domain={["dataMin", "dataMax"]}
+          />
+          <YAxis tick={chartAxisTick} width={56} />
+          <Tooltip
+            contentStyle={chartTooltipStyle}
+            labelFormatter={(_, rows) => rows?.[0]?.payload?.range ?? ""}
+            formatter={(v: number | string) => [Number(v).toLocaleString(), "Simulations"]}
+          />
+          <ReferenceLine
+            x={distribution.initial_value}
+            stroke="rgb(var(--negative))"
+            strokeDasharray="4 4"
+            label={{
+              value: "Initial",
+              fill: "rgb(var(--muted))",
+              fontSize: 11,
+              position: "top",
+            }}
+          />
+          <Bar dataKey="count" fill="rgb(var(--accent))" radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartCard>
   );
 }

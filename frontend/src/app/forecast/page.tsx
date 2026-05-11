@@ -2,27 +2,27 @@
 
 import { ForecastForm } from "@/components/forecast/ForecastForm";
 import { ForecastResults } from "@/components/forecast/ForecastResults";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionEyebrow } from "@/components/ui/SectionEyebrow";
 import type { ForecastOut } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
 export default function ForecastPage() {
   return (
-    <Suspense fallback={<PageHeader />}>
+    <Suspense fallback={<Header />}>
       <ForecastPageInner />
     </Suspense>
   );
 }
 
-function PageHeader() {
+function Header() {
   return (
-    <header className="space-y-2">
-      <h1 className="text-2xl font-semibold tracking-tight">Forecast</h1>
-      <p className="text-sm text-muted">
-        Simulate future portfolio outcomes with Monte Carlo, historical bootstrap, or ML-adjusted
-        drift.
-      </p>
-    </header>
+    <PageHeader
+      eyebrow="Simulate"
+      title="Forecast"
+      description="Project future portfolio outcomes using Monte Carlo simulation, historical bootstrap, or ML-adjusted drift. Returns are distributions, not point predictions."
+    />
   );
 }
 
@@ -43,14 +43,14 @@ function ForecastPageInner() {
   };
 
   return (
-    <div className="space-y-8">
-      <PageHeader />
+    <div className="space-y-10">
+      <Header />
 
       <ForecastForm defaultBacktestId={fromBacktestId} onSuccess={onSuccess} />
 
       {activeId && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Results</h2>
+        <section className="space-y-4">
+          <SectionEyebrow as="h2">Results</SectionEyebrow>
           <ForecastResults forecastId={activeId} initial={latest ?? undefined} />
         </section>
       )}

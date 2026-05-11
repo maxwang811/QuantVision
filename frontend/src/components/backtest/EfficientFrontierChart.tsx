@@ -1,5 +1,6 @@
 "use client";
 
+import { chartAxisTick, chartGridStroke, chartTooltipStyle } from "@/lib/chart-theme";
 import type { FrontierPointOut } from "@/lib/api";
 import {
   CartesianGrid,
@@ -32,7 +33,7 @@ export function EfficientFrontierChart({
 }: Props) {
   if (!points || points.length === 0) {
     return (
-      <div className="flex h-40 items-center justify-center rounded-md border border-border/60 text-sm text-muted">
+      <div className="flex h-40 items-center justify-center rounded-lg border border-dashed border-border bg-surface-2/40 text-sm text-muted">
         No frontier to display.
       </div>
     );
@@ -41,37 +42,51 @@ export function EfficientFrontierChart({
   const data = points.map((p) => ({ vol: p.volatility, ret: p.expected_return }));
 
   const chart = (
-    <ScatterChart margin={{ top: 12, right: 12, bottom: 24, left: 24 }}>
-      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+    <ScatterChart margin={{ top: 12, right: 12, bottom: 28, left: 28 }}>
+      <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
       <XAxis
         type="number"
         dataKey="vol"
         name="Volatility"
+        tick={chartAxisTick}
         tickFormatter={fmtPct}
-        label={{ value: "Annualized volatility", position: "insideBottom", offset: -10, fontSize: 11 }}
+        label={{
+          value: "Annualized volatility",
+          position: "insideBottom",
+          offset: -12,
+          fontSize: 11,
+          fill: "rgb(var(--muted))",
+        }}
       />
       <YAxis
         type="number"
         dataKey="ret"
         name="Expected return"
+        tick={chartAxisTick}
         tickFormatter={fmtPct}
-        label={{ value: "Annualized return", angle: -90, position: "insideLeft", fontSize: 11 }}
+        label={{
+          value: "Annualized return",
+          angle: -90,
+          position: "insideLeft",
+          fontSize: 11,
+          fill: "rgb(var(--muted))",
+        }}
       />
       <Tooltip
         formatter={(v: number) => fmtPct(v)}
         labelFormatter={() => ""}
-        contentStyle={{ background: "var(--bg)", border: "1px solid var(--border)" }}
+        contentStyle={chartTooltipStyle}
       />
-      <Scatter name="frontier" data={data} fill="var(--accent)" />
+      <Scatter name="frontier" data={data} fill="rgb(var(--accent))" />
       {minVariance && (
         <ReferenceDot
           x={minVariance.volatility}
           y={minVariance.expected_return}
           r={6}
-          fill="var(--positive)"
-          stroke="var(--bg)"
+          fill="rgb(var(--positive))"
+          stroke="rgb(var(--surface))"
           strokeWidth={2}
-          label={{ value: "min-var", fontSize: 10, dy: -10 }}
+          label={{ value: "min-var", fontSize: 10, dy: -10, fill: "rgb(var(--fg))" }}
         />
       )}
       {maxSharpe && (
@@ -79,10 +94,10 @@ export function EfficientFrontierChart({
           x={maxSharpe.volatility}
           y={maxSharpe.expected_return}
           r={6}
-          fill="var(--accent)"
-          stroke="var(--bg)"
+          fill="rgb(var(--accent))"
+          stroke="rgb(var(--surface))"
           strokeWidth={2}
-          label={{ value: "max-Sharpe", fontSize: 10, dy: -10 }}
+          label={{ value: "max-Sharpe", fontSize: 10, dy: -10, fill: "rgb(var(--fg))" }}
         />
       )}
     </ScatterChart>

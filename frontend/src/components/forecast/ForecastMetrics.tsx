@@ -1,5 +1,7 @@
 "use client";
 
+import { MetricCard, type MetricTone } from "@/components/ui/MetricCard";
+import { SectionEyebrow } from "@/components/ui/SectionEyebrow";
 import type { ForecastOut } from "@/lib/api";
 import { formatCurrency, formatDate, formatNumber, formatPercent } from "@/lib/format";
 
@@ -9,25 +11,25 @@ interface Props {
 
 export function ForecastMetrics({ forecast }: Props) {
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <Section title="Outcome range">
-        <Card label="Initial value" value={formatCurrency(forecast.initial_value)} />
-        <Card
+        <MetricCard label="Initial value" value={formatCurrency(forecast.initial_value)} />
+        <MetricCard
           label="Expected value"
           value={forecast.expected_value != null ? formatCurrency(forecast.expected_value) : "-"}
           tone={toneDelta(forecast.expected_value, forecast.initial_value)}
         />
-        <Card
+        <MetricCard
           label="Median value"
           value={forecast.median_value != null ? formatCurrency(forecast.median_value) : "-"}
           tone={toneDelta(forecast.median_value, forecast.initial_value)}
         />
-        <Card
+        <MetricCard
           label="10th percentile"
           value={forecast.p10_value != null ? formatCurrency(forecast.p10_value) : "-"}
           tone={toneDelta(forecast.p10_value, forecast.initial_value)}
         />
-        <Card
+        <MetricCard
           label="90th percentile"
           value={forecast.p90_value != null ? formatCurrency(forecast.p90_value) : "-"}
           tone={toneDelta(forecast.p90_value, forecast.initial_value)}
@@ -35,7 +37,7 @@ export function ForecastMetrics({ forecast }: Props) {
       </Section>
 
       <Section title="Risk">
-        <Card
+        <MetricCard
           label="Probability of loss"
           value={fmtPct(forecast.probability_of_loss)}
           tone={
@@ -44,19 +46,19 @@ export function ForecastMetrics({ forecast }: Props) {
               : "neutral"
           }
         />
-        <Card
+        <MetricCard
           label="Beat benchmark"
           value={fmtPct(forecast.probability_beat_benchmark)}
           tone={tone(forecast.probability_beat_benchmark != null ? forecast.probability_beat_benchmark - 0.5 : null)}
         />
-        <Card label="Volatility (ann.)" value={fmtPct(forecast.annualized_volatility)} />
-        <Card
+        <MetricCard label="Volatility (ann.)" value={fmtPct(forecast.annualized_volatility)} />
+        <MetricCard
           label="Expected return (ann.)"
           value={fmtPct(forecast.expected_return)}
           tone={tone(forecast.expected_return)}
         />
-        <Card label="Simulations" value={formatNumber(forecast.n_simulations, 0)} />
-        <Card label="As of" value={formatDate(forecast.as_of_date)} />
+        <MetricCard label="Simulations" value={formatNumber(forecast.n_simulations, 0)} />
+        <MetricCard label="As of" value={formatDate(forecast.as_of_date)} />
       </Section>
     </div>
   );
@@ -67,38 +69,23 @@ function fmtPct(n: number | null): string {
   return formatPercent(n, 2);
 }
 
-function tone(n: number | null): CardTone {
+function tone(n: number | null): MetricTone {
   if (n == null) return "neutral";
   if (n > 0) return "positive";
   if (n < 0) return "negative";
   return "neutral";
 }
 
-function toneDelta(n: number | null, initialValue: number): CardTone {
+function toneDelta(n: number | null, initialValue: number): MetricTone {
   if (n == null) return "neutral";
   return tone(n - initialValue);
 }
 
-type CardTone = "positive" | "negative" | "neutral";
-
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">{title}</h3>
-      <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">{children}</div>
-    </div>
-  );
-}
-
-function Card({ label, value, tone = "neutral" }: { label: string; value: string; tone?: CardTone }) {
-  const valueColor =
-    tone === "positive" ? "text-positive" : tone === "negative" ? "text-negative" : "text-fg";
-  return (
-    <div className="rounded-md border border-border bg-bg p-3">
-      <div className="text-[11px] uppercase tracking-wide text-muted">{label}</div>
-      <div className={`mt-1 font-mono text-lg font-semibold tabular-nums ${valueColor}`}>
-        {value}
-      </div>
+    <div className="space-y-3">
+      <SectionEyebrow>{title}</SectionEyebrow>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{children}</div>
     </div>
   );
 }

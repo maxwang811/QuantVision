@@ -1,7 +1,20 @@
 import type { Metadata } from "next";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { TopNav } from "@/components/nav/TopNav";
 import { QueryProvider } from "@/components/providers/QueryProvider";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "QuantVision",
@@ -10,11 +23,23 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen font-sans antialiased">
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+      <body className="min-h-screen bg-bg font-sans text-fg antialiased">
         <QueryProvider>
-          <TopNav />
-          <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+          <div className="flex min-h-screen flex-col">
+            <TopNav />
+            <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+              {children}
+            </main>
+            <footer className="mt-12 border-t border-border/70 bg-surface/40">
+              <div className="mx-auto flex w-full max-w-7xl flex-col items-start justify-between gap-2 px-4 py-6 text-xs text-muted sm:flex-row sm:items-center sm:px-6 lg:px-8">
+                <span>
+                  © {new Date().getFullYear()} QuantVision · Portfolio forecasting & strategy simulation
+                </span>
+                <span className="font-mono">Built with Next.js + FastAPI</span>
+              </div>
+            </footer>
+          </div>
         </QueryProvider>
       </body>
     </html>

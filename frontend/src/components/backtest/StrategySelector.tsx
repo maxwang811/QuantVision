@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/components/ui/utils";
 import type { StrategyName } from "@/lib/api";
 
 interface StrategyOption {
@@ -51,23 +52,24 @@ interface Props {
 
 export function StrategySelector({ value, onChange }: Props) {
   return (
-    <fieldset className="space-y-2">
-      <legend className="text-sm font-semibold uppercase tracking-wide text-muted">
+    <fieldset className="space-y-3">
+      <legend className="text-[11px] font-semibold uppercase tracking-eyebrow text-muted">
         Strategy
       </legend>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-2.5 sm:grid-cols-2">
         {STRATEGIES.map((s) => {
           const checked = value === s.value;
           return (
             <label
               key={s.value}
-              className={`relative flex cursor-pointer gap-3 rounded-md border p-3 text-sm transition-colors ${
+              className={cn(
+                "relative flex cursor-pointer gap-3 rounded-lg border p-3.5 text-sm transition-all",
                 s.enabled
                   ? checked
-                    ? "border-accent bg-accent/5"
-                    : "border-border hover:border-accent/60"
-                  : "cursor-not-allowed border-border/60 bg-border/10 opacity-60"
-              }`}
+                    ? "border-accent bg-accent/[0.06] ring-1 ring-accent/30"
+                    : "border-border hover:border-accent/40 hover:bg-surface-2"
+                  : "cursor-not-allowed border-border bg-surface-2/40 opacity-60",
+              )}
             >
               <input
                 type="radio"
@@ -76,18 +78,18 @@ export function StrategySelector({ value, onChange }: Props) {
                 checked={checked}
                 disabled={!s.enabled}
                 onChange={() => s.enabled && onChange(s.value as StrategyName)}
-                className="mt-1 accent-accent"
+                className="mt-0.5 accent-accent"
               />
               <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-fg">{s.label}</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold text-fg">{s.label}</span>
                   {s.hint && (
-                    <span className="rounded bg-border/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted">
+                    <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">
                       {s.hint}
                     </span>
                   )}
                 </div>
-                <div className="mt-0.5 text-xs text-muted">{s.description}</div>
+                <div className="mt-1 text-xs leading-5 text-muted">{s.description}</div>
               </div>
             </label>
           );

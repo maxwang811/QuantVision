@@ -1,5 +1,7 @@
 "use client";
 
+import { ChartCard } from "@/components/ui/ChartCard";
+import { chartAxisTick, chartGridStroke, chartTooltipStyle } from "@/lib/chart-theme";
 import type { BacktestEquityCurveOut } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useMemo } from "react";
@@ -40,62 +42,53 @@ export function EquityCurveChart({ curve }: Props) {
   const hasBenchmark = !!curve.benchmark && curve.benchmark.length > 0;
 
   return (
-    <div className="rounded-lg border border-border bg-bg p-4">
-      <div className="mb-3 flex items-baseline justify-between">
-        <h3 className="text-sm font-semibold text-fg">Equity curve</h3>
-        {hasBenchmark && curve.benchmark_ticker && (
-          <span className="text-xs text-muted">vs. {curve.benchmark_ticker}</span>
-        )}
-      </div>
-      <div className="h-72 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
-            <CartesianGrid stroke="rgb(var(--border))" strokeDasharray="3 3" />
-            <XAxis
-              dataKey="date"
-              tick={{ fill: "rgb(var(--muted))", fontSize: 11 }}
-              tickFormatter={(d) => formatDate(d)}
-              minTickGap={40}
-            />
-            <YAxis
-              tick={{ fill: "rgb(var(--muted))", fontSize: 11 }}
-              tickFormatter={(v) => formatCurrency(v)}
-              width={80}
-              domain={["auto", "auto"]}
-            />
-            <Tooltip
-              contentStyle={{
-                background: "rgb(var(--bg))",
-                border: "1px solid rgb(var(--border))",
-                borderRadius: 6,
-                fontSize: 12,
-              }}
-              labelFormatter={(d) => formatDate(String(d))}
-              formatter={(v: number) => formatCurrency(v)}
-            />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
+    <ChartCard
+      title="Equity curve"
+      meta={hasBenchmark && curve.benchmark_ticker ? <>vs. {curve.benchmark_ticker}</> : null}
+      bodyClassName="h-72"
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
+          <CartesianGrid stroke={chartGridStroke} strokeDasharray="3 3" />
+          <XAxis
+            dataKey="date"
+            tick={chartAxisTick}
+            tickFormatter={(d) => formatDate(d)}
+            minTickGap={40}
+          />
+          <YAxis
+            tick={chartAxisTick}
+            tickFormatter={(v) => formatCurrency(v)}
+            width={80}
+            domain={["auto", "auto"]}
+          />
+          <Tooltip
+            contentStyle={chartTooltipStyle}
+            labelFormatter={(d) => formatDate(String(d))}
+            formatter={(v: number) => formatCurrency(v)}
+          />
+          <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+          <Line
+            type="monotone"
+            dataKey="portfolio"
+            name="Portfolio"
+            stroke="rgb(var(--accent))"
+            strokeWidth={2.25}
+            dot={false}
+          />
+          {hasBenchmark && (
             <Line
               type="monotone"
-              dataKey="portfolio"
-              name="Portfolio"
-              stroke="rgb(var(--accent))"
-              strokeWidth={2}
+              dataKey="benchmark"
+              name={curve.benchmark_ticker ?? "Benchmark"}
+              stroke="rgb(var(--muted))"
+              strokeWidth={1.5}
+              strokeDasharray="4 4"
               dot={false}
             />
-            {hasBenchmark && (
-              <Line
-                type="monotone"
-                dataKey="benchmark"
-                name={curve.benchmark_ticker ?? "Benchmark"}
-                stroke="rgb(var(--muted))"
-                strokeWidth={1.5}
-                strokeDasharray="4 4"
-                dot={false}
-              />
-            )}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
+          )}
+        </LineChart>
+      </ResponsiveContainer>
+    </ChartCard>
   );
 }

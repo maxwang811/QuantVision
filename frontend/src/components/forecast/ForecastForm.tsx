@@ -1,6 +1,12 @@
 "use client";
 
 import { PortfolioWeightEditor, type PortfolioRow } from "@/components/backtest/PortfolioWeightEditor";
+import { Button } from "@/components/ui/Button";
+import { Card, CardHeader } from "@/components/ui/Card";
+import { Field } from "@/components/ui/Field";
+import { Input } from "@/components/ui/Input";
+import { Tabs } from "@/components/ui/Tabs";
+import { cn } from "@/components/ui/utils";
 import {
   ApiRequestError,
   api,
@@ -145,152 +151,158 @@ export function ForecastForm({ defaultBacktestId, onSuccess }: Props) {
         : null;
 
   return (
-    <form onSubmit={submit} className="space-y-6 rounded-lg border border-border p-5">
-      <Field label="Run name (optional)">
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={128}
-          placeholder="12 month Monte Carlo baseline"
-          className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-accent"
+    <form onSubmit={submit} className="space-y-6">
+      <Card>
+        <CardHeader
+          eyebrow="Step 1"
+          title="Forecast source"
+          description="Forecast a brand-new portfolio or one that's already been backtested."
         />
-      </Field>
+        <div className="mt-5 space-y-5">
+          <Field label="Run name (optional)">
+            <Input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={128}
+              placeholder="12 month Monte Carlo baseline"
+            />
+          </Field>
 
-      <div className="space-y-2">
-        <div className="text-sm font-semibold uppercase tracking-wide text-muted">
-          Forecast source
-        </div>
-        <div className="inline-flex rounded-md border border-border p-1">
-          <SourceButton active={mode === "manual"} onClick={() => setMode("manual")}>
-            Manual portfolio
-          </SourceButton>
-          <SourceButton active={mode === "backtest"} onClick={() => setMode("backtest")}>
-            From backtest
-          </SourceButton>
-        </div>
-      </div>
-
-      {mode === "manual" ? (
-        <PortfolioWeightEditor rows={rows} onChange={setRows} />
-      ) : (
-        <Field label="Completed backtest id">
-          <input
-            type="text"
-            value={fromBacktestId}
-            onChange={(e) => setFromBacktestId(e.target.value)}
-            placeholder="00000000-0000-0000-0000-000000000000"
-            className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm font-mono text-fg outline-none focus:border-accent"
+          <Tabs
+            value={mode}
+            onChange={(v) => setMode(v)}
+            tabs={[
+              { value: "manual", label: "Manual portfolio" },
+              { value: "backtest", label: "From backtest" },
+            ]}
           />
-        </Field>
-      )}
 
-      <div className="space-y-2">
-        <div className="text-sm font-semibold uppercase tracking-wide text-muted">
-          Forecast method
+          {mode === "manual" ? (
+            <PortfolioWeightEditor rows={rows} onChange={setRows} />
+          ) : (
+            <Field label="Completed backtest id">
+              <Input
+                type="text"
+                value={fromBacktestId}
+                onChange={(e) => setFromBacktestId(e.target.value)}
+                placeholder="00000000-0000-0000-0000-000000000000"
+                className="font-mono"
+              />
+            </Field>
+          )}
         </div>
-        <div className="grid gap-2 md:grid-cols-3">
-          {METHODS.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              onClick={() => setMethod(item.value)}
-              className={`rounded-md border p-3 text-left transition-colors ${
-                method === item.value
-                  ? "border-accent bg-accent/10 text-fg"
-                  : "border-border text-muted hover:border-accent hover:text-fg"
-              }`}
-            >
-              <div className="text-sm font-semibold">{item.label}</div>
-              <div className="mt-1 text-xs leading-5">{item.detail}</div>
-            </button>
-          ))}
-        </div>
-      </div>
+      </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {mode === "manual" && (
-          <Field label="Initial value">
-            <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">
-                $
-              </span>
-              <input
+      <Card>
+        <CardHeader
+          eyebrow="Step 2"
+          title="Method"
+          description="Pick the simulation engine that drives future returns."
+        />
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          {METHODS.map((item) => {
+            const active = method === item.value;
+            return (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setMethod(item.value)}
+                aria-pressed={active}
+                className={cn(
+                  "rounded-lg border p-4 text-left transition-all focus-ring",
+                  active
+                    ? "border-accent bg-accent/[0.06] ring-1 ring-accent/30"
+                    : "border-border hover:border-accent/40 hover:bg-surface-2",
+                )}
+              >
+                <div className="text-sm font-semibold text-fg">{item.label}</div>
+                <div className="mt-1 text-xs leading-5 text-muted">{item.detail}</div>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          eyebrow="Step 3"
+          title="Simulation parameters"
+          description="Horizon, sample count, lookback window, and optional anchors."
+        />
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {mode === "manual" && (
+            <Field label="Initial value">
+              <Input
                 type="number"
                 min={0}
                 step={100}
                 value={initialValue}
                 onChange={(e) => setInitialValue(Number(e.target.value))}
-                className="w-full rounded-md border border-border bg-bg pl-7 pr-3 py-2 text-sm text-fg outline-none focus:border-accent"
+                adornmentLeft="$"
               />
-            </div>
-          </Field>
-        )}
+            </Field>
+          )}
 
-        <NumberField
-          label="Horizon months"
-          min={1}
-          max={120}
-          step={1}
-          value={horizonMonths}
-          onChange={setHorizonMonths}
-        />
-        <NumberField
-          label="Simulations"
-          min={100}
-          max={50_000}
-          step={100}
-          value={nSimulations}
-          onChange={setNSimulations}
-        />
-        <NumberField
-          label="Lookback trading days"
-          min={252}
-          max={5040}
-          step={21}
-          value={lookbackDays}
-          onChange={setLookbackDays}
-        />
-        <Field label="As-of date (optional)">
-          <input
-            type="date"
-            value={asOfDate}
-            onChange={(e) => setAsOfDate(e.target.value)}
-            className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-accent"
-          />
-        </Field>
-        <Field label="Benchmark ticker (optional)">
-          <input
-            type="text"
-            value={benchmarkTicker}
-            onChange={(e) => setBenchmarkTicker(e.target.value)}
-            placeholder="SPY"
-            className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm font-mono text-fg outline-none focus:border-accent"
-          />
-        </Field>
-        <Field label="Random seed (optional)">
-          <input
-            type="number"
-            min={0}
+          <NumberField
+            label="Horizon months"
+            min={1}
+            max={120}
             step={1}
-            value={randomSeed}
-            onChange={(e) => setRandomSeed(e.target.value)}
-            className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-accent"
+            value={horizonMonths}
+            onChange={setHorizonMonths}
           />
-        </Field>
-      </div>
+          <NumberField
+            label="Simulations"
+            min={100}
+            max={50_000}
+            step={100}
+            value={nSimulations}
+            onChange={setNSimulations}
+          />
+          <NumberField
+            label="Lookback trading days"
+            min={252}
+            max={5040}
+            step={21}
+            value={lookbackDays}
+            onChange={setLookbackDays}
+          />
+          <Field label="As-of date (optional)">
+            <Input
+              type="date"
+              value={asOfDate}
+              onChange={(e) => setAsOfDate(e.target.value)}
+            />
+          </Field>
+          <Field label="Benchmark ticker (optional)">
+            <Input
+              type="text"
+              value={benchmarkTicker}
+              onChange={(e) => setBenchmarkTicker(e.target.value)}
+              placeholder="SPY"
+              className="font-mono"
+            />
+          </Field>
+          <Field label="Random seed (optional)">
+            <Input
+              type="number"
+              min={0}
+              step={1}
+              value={randomSeed}
+              onChange={(e) => setRandomSeed(e.target.value)}
+            />
+          </Field>
+        </div>
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
-        <button
-          type="submit"
-          disabled={!payload || mutation.isPending}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {mutation.isPending ? "Running..." : "Run Forecast"}
-        </button>
-        {localError && <span className="text-sm text-negative">{localError}</span>}
-        {!localError && apiError && <span className="text-sm text-negative">{apiError}</span>}
-      </div>
+        <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border pt-5">
+          <Button type="submit" disabled={!payload || mutation.isPending} size="lg">
+            {mutation.isPending ? "Running…" : "Run Forecast"}
+          </Button>
+          {localError && <span className="text-sm text-negative">{localError}</span>}
+          {!localError && apiError && <span className="text-sm text-negative">{apiError}</span>}
+        </div>
+      </Card>
     </form>
   );
 }
@@ -340,28 +352,6 @@ function buildCommonPayload({
   return { payload };
 }
 
-function SourceButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded px-3 py-1.5 text-sm font-medium transition-colors ${
-        active ? "bg-accent text-white" : "text-muted hover:text-fg"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
 function NumberField({
   label,
   value,
@@ -379,24 +369,14 @@ function NumberField({
 }) {
   return (
     <Field label={label}>
-      <input
+      <Input
         type="number"
         min={min}
         max={max}
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-accent"
       />
     </Field>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block space-y-1">
-      <span className="text-xs font-medium uppercase tracking-wide text-muted">{label}</span>
-      {children}
-    </label>
   );
 }

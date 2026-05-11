@@ -1,5 +1,9 @@
 "use client";
 
+import { Button } from "@/components/ui/Button";
+import { ErrorBox } from "@/components/ui/EmptyState";
+import { IconSparkles } from "@/components/ui/Icons";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { ApiRequestError, api, type BacktestOut } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
@@ -36,13 +40,11 @@ export function BacktestResults({ backtestId, initial }: Props) {
     return <ErrorBox message={msg} />;
   }
 
-  if (!summary.data) return <Skeleton />;
+  if (!summary.data) return <ResultsSkeleton />;
 
   if (summary.data.status === "failed") {
     return (
-      <div className="rounded-lg border border-negative/40 bg-negative/5 p-4 text-sm text-negative">
-        Backtest failed: {summary.data.error_message ?? "(no message)"}
-      </div>
+      <ErrorBox message={`Backtest failed: ${summary.data.error_message ?? "(no message)"}`} />
     );
   }
 
@@ -51,8 +53,9 @@ export function BacktestResults({ backtestId, initial }: Props) {
       <div className="flex justify-end">
         <Link
           href={`/forecast?from_backtest_id=${encodeURIComponent(backtestId)}`}
-          className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-fg hover:border-accent hover:text-accent"
+          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-surface px-3 text-sm font-medium text-fg transition-colors hover:border-accent hover:text-accent focus-ring"
         >
+          <IconSparkles width={14} height={14} />
           Forecast from this backtest
         </Link>
       </div>
@@ -71,24 +74,20 @@ export function BacktestResults({ backtestId, initial }: Props) {
       {trades.data ? (
         <TradeHistoryTable trades={trades.data.trades} />
       ) : (
-        <div className="h-32 animate-pulse rounded-lg border border-border bg-border/20" />
+        <Skeleton className="h-32" />
       )}
     </div>
   );
 }
 
-function ErrorBox({ message }: { message: string }) {
+function ResultsSkeleton() {
   return (
-    <div className="rounded-lg border border-negative/40 bg-negative/5 p-4 text-sm text-negative">
-      {message}
-    </div>
-  );
-}
-
-function Skeleton() {
-  return (
-    <div className="space-y-3">
-      <div className="h-24 animate-pulse rounded-lg border border-border bg-border/20" />
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-24" />
+        ))}
+      </div>
       <ChartSkeleton />
     </div>
   );
@@ -96,9 +95,9 @@ function Skeleton() {
 
 function ChartSkeleton() {
   return (
-    <div className="space-y-3">
-      <div className="h-72 animate-pulse rounded-lg border border-border bg-border/20" />
-      <div className="h-48 animate-pulse rounded-lg border border-border bg-border/20" />
+    <div className="space-y-4">
+      <Skeleton className="h-72" />
+      <Skeleton className="h-48" />
     </div>
   );
 }

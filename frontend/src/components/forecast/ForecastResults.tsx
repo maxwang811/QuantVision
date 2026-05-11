@@ -1,5 +1,7 @@
 "use client";
 
+import { ErrorBox } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
 import {
   ApiRequestError,
   api,
@@ -40,13 +42,11 @@ export function ForecastResults({ forecastId, initial }: Props) {
     return <ErrorBox message={errorMessage(summary.error)} />;
   }
 
-  if (!summary.data) return <Skeleton />;
+  if (!summary.data) return <ResultsSkeleton />;
 
   if (summary.data.status === "failed") {
     return (
-      <div className="rounded-lg border border-negative/40 bg-negative/5 p-4 text-sm text-negative">
-        Forecast failed: {summary.data.error_message ?? "(no message)"}
-      </div>
+      <ErrorBox message={`Forecast failed: ${summary.data.error_message ?? "(no message)"}`} />
     );
   }
 
@@ -57,11 +57,11 @@ export function ForecastResults({ forecastId, initial }: Props) {
       {paths.isError && <ErrorBox message={errorMessage(paths.error)} />}
       {distribution.isError && <ErrorBox message={errorMessage(distribution.error)} />}
 
-      {paths.data ? <ForecastPathChart paths={paths.data} /> : <ChartSkeleton />}
+      {paths.data ? <ForecastPathChart paths={paths.data} /> : <Skeleton className="h-80" />}
       {distribution.data ? (
         <ForecastDistributionChart distribution={distribution.data} />
       ) : (
-        <ChartSkeleton compact />
+        <Skeleton className="h-72" />
       )}
     </div>
   );
@@ -72,30 +72,16 @@ function errorMessage(error: unknown): string {
   return String(error);
 }
 
-function ErrorBox({ message }: { message: string }) {
+function ResultsSkeleton() {
   return (
-    <div className="rounded-lg border border-negative/40 bg-negative/5 p-4 text-sm text-negative">
-      {message}
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-24" />
+        ))}
+      </div>
+      <Skeleton className="h-80" />
+      <Skeleton className="h-72" />
     </div>
-  );
-}
-
-function Skeleton() {
-  return (
-    <div className="space-y-3">
-      <div className="h-28 animate-pulse rounded-lg border border-border bg-border/20" />
-      <ChartSkeleton />
-      <ChartSkeleton compact />
-    </div>
-  );
-}
-
-function ChartSkeleton({ compact = false }: { compact?: boolean }) {
-  return (
-    <div
-      className={`animate-pulse rounded-lg border border-border bg-border/20 ${
-        compact ? "h-72" : "h-80"
-      }`}
-    />
   );
 }

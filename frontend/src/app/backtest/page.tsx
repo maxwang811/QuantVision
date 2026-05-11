@@ -4,28 +4,27 @@ import { BacktestForm } from "@/components/backtest/BacktestForm";
 import { BacktestResults } from "@/components/backtest/BacktestResults";
 import { OptimizerPanel } from "@/components/backtest/OptimizerPanel";
 import type { PortfolioRow } from "@/components/backtest/PortfolioWeightEditor";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionEyebrow } from "@/components/ui/SectionEyebrow";
 import type { BacktestOut } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
 export default function BacktestPage() {
   return (
-    <Suspense fallback={<PageHeader />}>
+    <Suspense fallback={<Header />}>
       <BacktestPageInner />
     </Suspense>
   );
 }
 
-function PageHeader() {
+function Header() {
   return (
-    <header className="space-y-2">
-      <h1 className="text-2xl font-semibold tracking-tight">Backtest</h1>
-      <p className="text-sm text-muted">
-        Build a portfolio, pick a strategy, and replay it on historical prices. Metrics, equity
-        curve, drawdown, and trades all render below after the run completes. Optionally run the
-        portfolio optimizer above to seed the weights.
-      </p>
-    </header>
+    <PageHeader
+      eyebrow="Run"
+      title="Backtest"
+      description="Build a portfolio, pick a strategy, and replay it on historical prices. Metrics, equity curve, drawdown, and trades render below after the run completes."
+    />
   );
 }
 
@@ -46,16 +45,16 @@ function BacktestPageInner() {
   };
 
   return (
-    <div className="space-y-8">
-      <PageHeader />
+    <div className="space-y-10">
+      <Header />
 
       <OptimizerPanel onApply={(rows) => setPresetRows(rows)} />
 
       <BacktestForm onSuccess={onSuccess} defaultRows={presetRows} />
 
       {activeId && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Results</h2>
+        <section className="space-y-4">
+          <SectionEyebrow as="h2">Results</SectionEyebrow>
           <BacktestResults backtestId={activeId} initial={latest ?? undefined} />
         </section>
       )}
