@@ -4,7 +4,6 @@ import { TickerInput } from "@/components/portfolio/TickerInput";
 import { Button } from "@/components/ui/Button";
 import { IconCheck, IconPlus, IconX } from "@/components/ui/Icons";
 import { Input } from "@/components/ui/Input";
-import { SectionEyebrow } from "@/components/ui/SectionEyebrow";
 import { cn } from "@/components/ui/utils";
 
 export interface PortfolioRow {
@@ -52,73 +51,105 @@ export function PortfolioWeightEditor({ rows, onChange }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-baseline justify-between gap-3">
-        <SectionEyebrow as="div">Portfolio</SectionEyebrow>
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h3 className="text-sm font-medium text-fg">Portfolio Allocation</h3>
+          <p className="text-xs text-muted mt-0.5">Weights must sum to 100%</p>
+        </div>
         <div
           className={cn(
-            "inline-flex items-center gap-1.5 font-mono text-xs font-medium tabular-nums",
-            balanced ? "text-positive" : "text-negative",
+            "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium font-mono tabular-nums",
+            balanced 
+              ? "bg-positive-soft text-positive" 
+              : "bg-negative-soft text-negative",
           )}
         >
-          {balanced && <IconCheck width={12} height={12} />}
-          Total: {totalPct.toFixed(2)}%
+          {balanced && <IconCheck width={14} height={14} />}
+          {totalPct.toFixed(1)}%
         </div>
       </div>
 
+      {/* Rows */}
       <div className="space-y-2">
         {rows.map((row, i) => (
           <div
             key={i}
-            className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-2 sm:flex-row sm:items-center"
+            className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3 transition-colors hover:border-border-strong"
           >
-            <div className="flex-1">
+            {/* Ticker search */}
+            <div className="flex-1 min-w-0">
               <TickerInput
                 key={`ti-${i}-${row.ticker}`}
-                placeholder="Search ticker…"
+                placeholder="Search ticker..."
                 onSelect={(a) => update(i, { ticker: a.ticker })}
               />
             </div>
-            <div className="flex items-center gap-2">
-              <div className="hidden w-20 truncate text-right font-mono text-sm text-fg sm:block">
-                {row.ticker ? row.ticker : <span className="text-muted">—</span>}
-              </div>
-              <div className="w-24">
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  max={100}
-                  step={0.01}
-                  value={Number.isFinite(row.weightPct) ? row.weightPct : ""}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    update(i, { weightPct: v === "" ? 0 : Number(v) });
-                  }}
-                  adornmentRight="%"
-                  aria-label="Weight percent"
-                />
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => removeRow(i)}
-                aria-label="Remove row"
-                disabled={rows.length <= 1}
-                className="h-9 w-9 p-0 text-muted hover:text-negative"
-              >
-                <IconX width={14} height={14} />
-              </Button>
+            
+            {/* Selected ticker display */}
+            <div className="hidden sm:flex w-20 items-center justify-end">
+              {row.ticker ? (
+                <span className="font-mono text-sm font-medium text-fg bg-surface-2 px-2 py-1 rounded">
+                  {row.ticker}
+                </span>
+              ) : (
+                <span className="text-xs text-muted">No ticker</span>
+              )}
             </div>
+            
+            {/* Weight input */}
+            <div className="w-28">
+              <Input
+                type="number"
+                inputMode="decimal"
+                inputSize="sm"
+                min={0}
+                max={100}
+                step={0.01}
+                value={Number.isFinite(row.weightPct) ? row.weightPct : ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  update(i, { weightPct: v === "" ? 0 : Number(v) });
+                }}
+                adornmentRight="%"
+                aria-label="Weight percent"
+              />
+            </div>
+            
+            {/* Remove button */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => removeRow(i)}
+              aria-label="Remove row"
+              disabled={rows.length <= 1}
+              className="h-8 w-8 p-0 text-muted hover:text-negative shrink-0"
+            >
+              <IconX width={16} height={16} />
+            </Button>
           </div>
         ))}
       </div>
 
+      {/* Actions */}
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="secondary" size="sm" onClick={addRow} leadingIcon={<IconPlus width={12} height={12} />}>
+        <Button 
+          type="button" 
+          variant="secondary" 
+          size="sm" 
+          onClick={addRow} 
+          leadingIcon={<IconPlus width={14} height={14} />}
+        >
           Add ticker
         </Button>
-        <Button type="button" variant="ghost" size="sm" onClick={normalize}>
+        <Button 
+          type="button" 
+          variant="ghost" 
+          size="sm" 
+          onClick={normalize}
+          disabled={rows.length === 0}
+        >
           Normalize to 100%
         </Button>
       </div>

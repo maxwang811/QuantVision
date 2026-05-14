@@ -4,14 +4,14 @@ import { cn } from "./utils";
 interface SectionEyebrowProps {
   children: ReactNode;
   className?: string;
-  as?: "h2" | "h3" | "h4" | "div";
+  as?: "h2" | "h3" | "h4" | "div" | "span";
 }
 
 export function SectionEyebrow({ children, className, as: Tag = "h3" }: SectionEyebrowProps) {
   return (
     <Tag
       className={cn(
-        "text-[11px] font-semibold uppercase tracking-eyebrow text-muted",
+        "text-xs font-medium text-muted",
         className,
       )}
     >

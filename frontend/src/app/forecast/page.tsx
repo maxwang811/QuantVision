@@ -3,7 +3,6 @@
 import { ForecastForm } from "@/components/forecast/ForecastForm";
 import { ForecastResults } from "@/components/forecast/ForecastResults";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { SectionEyebrow } from "@/components/ui/SectionEyebrow";
 import type { ForecastOut } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -19,9 +18,8 @@ export default function ForecastPage() {
 function Header() {
   return (
     <PageHeader
-      eyebrow="Simulate"
       title="Forecast"
-      description="Project future portfolio outcomes using Monte Carlo simulation, historical bootstrap, or ML-adjusted drift. Returns are distributions, not point predictions."
+      description="Project future portfolio outcomes using simulation methods. Returns are distributions, not point predictions."
     />
   );
 }
@@ -43,14 +41,17 @@ function ForecastPageInner() {
   };
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <Header />
 
       <ForecastForm defaultBacktestId={fromBacktestId} onSuccess={onSuccess} />
 
       {activeId && (
-        <section className="space-y-4">
-          <SectionEyebrow as="h2">Results</SectionEyebrow>
+        <section className="space-y-6">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold text-fg">Results</h2>
+            <div className="h-px flex-1 bg-border" />
+          </div>
           <ForecastResults forecastId={activeId} initial={latest ?? undefined} />
         </section>
       )}

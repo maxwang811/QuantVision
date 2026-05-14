@@ -85,44 +85,45 @@ export function OptimizerPanel({ onApply, defaultTickers = DEFAULT_TICKERS }: Pr
   };
 
   return (
-    <Card padded={false}>
+    <Card variant="default" padded={false} className="overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-surface-2/40 sm:px-6 focus-ring"
+        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-surface-2/50 sm:px-6 focus-ring"
       >
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent">
-            <IconBeaker width={18} height={18} />
+        <div className="flex items-start gap-4">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent text-accent-fg shrink-0">
+            <IconBeaker width={20} height={20} />
           </span>
           <div className="space-y-1">
-            <div className="text-[11px] font-semibold uppercase tracking-eyebrow text-muted">
-              Optional
+            <div className="flex items-center gap-2">
+              <span className="text-base font-semibold text-fg">
+                Portfolio Optimizer
+              </span>
+              <span className="text-xs text-muted bg-surface-2 px-2 py-0.5 rounded-full">
+                Optional
+              </span>
             </div>
-            <div className="text-base font-semibold text-fg">
-              Portfolio optimizer (mean-variance)
-            </div>
-            <p className="text-sm text-muted">
-              Compute long-only min-variance and max-Sharpe portfolios, then apply the weights to
-              the backtest form below.
+            <p className="text-sm text-muted leading-relaxed">
+              Compute optimal min-variance and max-Sharpe portfolios using mean-variance optimization, then apply the weights below.
             </p>
           </div>
         </div>
         <IconChevronDown
-          width={18}
-          height={18}
+          width={20}
+          height={20}
           className={cn(
-            "h-5 w-5 flex-shrink-0 text-muted transition-transform",
+            "shrink-0 text-muted transition-transform duration-200",
             open && "rotate-180",
           )}
         />
       </button>
 
       {open && (
-        <div className="border-t border-border px-5 py-5 sm:px-6">
-          <form onSubmit={submit} className="space-y-5">
-            <Field label="Tickers (comma or space separated)">
+        <div className="border-t border-border px-5 py-6 sm:px-6 animate-fade-in">
+          <form onSubmit={submit} className="space-y-6">
+            <Field label="Tickers" hint="Comma or space separated">
               <Input
                 type="text"
                 value={tickersText}
@@ -132,7 +133,7 @@ export function OptimizerPanel({ onApply, defaultTickers = DEFAULT_TICKERS }: Pr
               />
             </Field>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Field label="Lookback days">
                 <Input
                   type="number"
@@ -153,13 +154,13 @@ export function OptimizerPanel({ onApply, defaultTickers = DEFAULT_TICKERS }: Pr
                   onChange={(e) => setRiskFreeRate(Number(e.target.value))}
                 />
               </Field>
-              <Field label="Target return">
-                <div className="flex items-center gap-2">
+              <Field label="Target return" hint="Optional constraint">
+                <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
                     checked={useTargetReturn}
                     onChange={(e) => setUseTargetReturn(e.target.checked)}
-                    className="h-4 w-4 accent-accent"
+                    className="h-4 w-4 rounded border-border accent-accent"
                     aria-label="Use target return"
                   />
                   <Input
@@ -175,9 +176,13 @@ export function OptimizerPanel({ onApply, defaultTickers = DEFAULT_TICKERS }: Pr
               </Field>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <Button type="submit" disabled={!!localError || mutation.isPending}>
-                {mutation.isPending ? "Optimizing…" : "Optimize"}
+            <div className="flex flex-wrap items-center gap-3">
+              <Button 
+                type="submit" 
+                disabled={!!localError || mutation.isPending}
+                loading={mutation.isPending}
+              >
+                {mutation.isPending ? "Optimizing..." : "Run Optimization"}
               </Button>
               {localError && <span className="text-sm text-negative">{localError}</span>}
               {!localError && apiError && <span className="text-sm text-negative">{apiError}</span>}
@@ -199,16 +204,21 @@ function ResultBlock({
   onApply: (point: FrontierPointOut) => void;
 }) {
   return (
-    <div className="mt-6 space-y-5">
+    <div className="mt-8 space-y-6">
+      <div className="flex items-center gap-3">
+        <h3 className="text-sm font-medium text-fg">Optimization Results</h3>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+      
       <div className="grid gap-4 lg:grid-cols-2">
         <PointCard
-          title="Min-variance"
+          title="Min-variance Portfolio"
           tickers={result.tickers}
           point={result.min_variance}
           onApply={() => onApply(result.min_variance)}
         />
         <PointCard
-          title="Max-Sharpe"
+          title="Max-Sharpe Portfolio"
           tickers={result.tickers}
           point={result.max_sharpe}
           onApply={() => onApply(result.max_sharpe)}
@@ -217,17 +227,18 @@ function ResultBlock({
 
       {result.target_return && (
         <PointCard
-          title="Target-return"
+          title="Target-return Portfolio"
           tickers={result.tickers}
           point={result.target_return}
           onApply={() => onApply(result.target_return!)}
         />
       )}
 
-      <Card className="bg-surface">
+      <Card variant="default">
         <CardHeader
-          eyebrow={`${result.n_observations} obs · ${result.lookback_start} → ${result.lookback_end}`}
-          title="Efficient frontier"
+          eyebrow={`${result.n_observations} observations`}
+          title="Efficient Frontier"
+          description={`${result.lookback_start} to ${result.lookback_end}`}
         />
         <div className="mt-4">
           <EfficientFrontierChart
@@ -253,25 +264,29 @@ function PointCard({
   onApply: () => void;
 }) {
   return (
-    <Card className="bg-surface" padded>
-      <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-sm font-semibold text-fg">{title}</h3>
-        <Button type="button" variant="secondary" size="sm" onClick={onApply}>
-          Use these weights
+    <div className="rounded-xl border border-border bg-surface p-4 space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <h4 className="font-medium text-fg">{title}</h4>
+        <Button type="button" variant="outline" size="sm" onClick={onApply}>
+          Apply weights
         </Button>
       </div>
-      <dl className="mt-4 grid grid-cols-3 gap-3 text-xs">
-        <Stat label="Expected return" value={`${(point.expected_return * 100).toFixed(2)}%`} />
+      
+      {/* Metrics */}
+      <div className="grid grid-cols-3 gap-3">
+        <Stat label="Expected Return" value={`${(point.expected_return * 100).toFixed(2)}%`} />
         <Stat label="Volatility" value={`${(point.volatility * 100).toFixed(2)}%`} />
-        <Stat label="Sharpe" value={point.sharpe_ratio.toFixed(2)} />
-      </dl>
-      <div className="mt-4 overflow-hidden rounded-md border border-border">
-        <table className="w-full text-xs">
+        <Stat label="Sharpe Ratio" value={point.sharpe_ratio.toFixed(2)} />
+      </div>
+      
+      {/* Weights table */}
+      <div className="overflow-hidden rounded-lg border border-border">
+        <table className="w-full text-sm">
           <tbody className="divide-y divide-border">
             {tickers.map((t, i) => (
-              <tr key={t}>
-                <td className="px-3 py-1.5 font-mono font-medium text-fg">{t}</td>
-                <td className="px-3 py-1.5 text-right font-mono tabular-nums text-muted">
+              <tr key={t} className="hover:bg-surface-2/50">
+                <td className="px-3 py-2 font-mono font-medium text-fg">{t}</td>
+                <td className="px-3 py-2 text-right font-mono tabular-nums text-muted">
                   {(point.weights[i] * 100).toFixed(2)}%
                 </td>
               </tr>
@@ -279,14 +294,14 @@ function PointCard({
           </tbody>
         </table>
       </div>
-    </Card>
+    </div>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md bg-surface-2/60 p-2.5">
-      <div className="text-[10px] font-medium uppercase tracking-eyebrow text-muted">{label}</div>
+    <div className="rounded-lg bg-surface-2/60 p-3 text-center">
+      <div className="text-2xs font-medium text-muted uppercase tracking-eyebrow">{label}</div>
       <div className="mt-1 font-mono text-sm font-semibold text-fg">{value}</div>
     </div>
   );

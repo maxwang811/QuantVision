@@ -2,8 +2,9 @@
 
 import { PortfolioWeightEditor, type PortfolioRow } from "@/components/backtest/PortfolioWeightEditor";
 import { Button } from "@/components/ui/Button";
-import { Card, CardHeader } from "@/components/ui/Card";
+import { Card, CardHeader, CardSection } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
+import { IconChart, IconSparkles, IconCpu } from "@/components/ui/Icons";
 import { Input } from "@/components/ui/Input";
 import { Tabs } from "@/components/ui/Tabs";
 import { cn } from "@/components/ui/utils";
@@ -23,21 +24,24 @@ const DEFAULT_ROWS: PortfolioRow[] = [
   { ticker: "MSFT", weightPct: 25 },
 ];
 
-const METHODS: { value: ForecastMethod; label: string; detail: string }[] = [
+const METHODS: { value: ForecastMethod; label: string; detail: string; icon: typeof IconChart }[] = [
   {
     value: "monte_carlo",
     label: "Monte Carlo",
     detail: "Parametric simulation using historical drift, volatility, and covariance.",
+    icon: IconSparkles,
   },
   {
     value: "bootstrap",
     label: "Bootstrap",
     detail: "Historical return sampling that preserves same-day cross-asset moves.",
+    icon: IconChart,
   },
   {
     value: "ml_drift",
-    label: "ML drift",
+    label: "ML Drift",
     detail: "Ridge-based drift adjustment with Monte Carlo covariance.",
+    icon: IconCpu,
   },
 ];
 
@@ -152,156 +156,187 @@ export function ForecastForm({ defaultBacktestId, onSuccess }: Props) {
 
   return (
     <form onSubmit={submit} className="space-y-6">
-      <Card>
+      <Card variant="elevated">
         <CardHeader
-          eyebrow="Step 1"
-          title="Forecast source"
-          description="Forecast a brand-new portfolio or one that's already been backtested."
+          title="Forecast Configuration"
+          description="Choose your portfolio source and simulation method."
+          size="large"
         />
-        <div className="mt-5 space-y-5">
-          <Field label="Run name (optional)">
+        
+        <CardSection divided className="space-y-6">
+          {/* Run name */}
+          <Field label="Run name" hint="Optional - helps identify this forecast later">
             <Input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={128}
-              placeholder="12 month Monte Carlo baseline"
+              placeholder="e.g., 12 month Monte Carlo baseline"
             />
           </Field>
 
-          <Tabs
-            value={mode}
-            onChange={(v) => setMode(v)}
-            tabs={[
-              { value: "manual", label: "Manual portfolio" },
-              { value: "backtest", label: "From backtest" },
-            ]}
-          />
+          {/* Source tabs */}
+          <div className="space-y-4">
+            <Tabs
+              value={mode}
+              onChange={(v) => setMode(v)}
+              tabs={[
+                { value: "manual", label: "Manual portfolio" },
+                { value: "backtest", label: "From backtest" },
+              ]}
+            />
 
-          {mode === "manual" ? (
-            <PortfolioWeightEditor rows={rows} onChange={setRows} />
-          ) : (
-            <Field label="Completed backtest id">
+            {mode === "manual" ? (
+              <PortfolioWeightEditor rows={rows} onChange={setRows} />
+            ) : (
+              <Field label="Completed backtest ID" hint="Copy from a previous backtest run">
+                <Input
+                  type="text"
+                  value={fromBacktestId}
+                  onChange={(e) => setFromBacktestId(e.target.value)}
+                  placeholder="00000000-0000-0000-0000-000000000000"
+                  className="font-mono"
+                />
+              </Field>
+            )}
+          </div>
+        </CardSection>
+
+        <CardSection divided className="space-y-6">
+          {/* Method selection */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-fg">Simulation Method</h3>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {METHODS.map((item) => {
+                const active = method === item.value;
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => setMethod(item.value)}
+                    aria-pressed={active}
+                    className={cn(
+                      "relative flex flex-col items-start gap-3 rounded-xl border p-4 text-left transition-all duration-200 focus-ring",
+                      active
+                        ? "border-accent bg-accent-soft ring-1 ring-accent/30"
+                        : "border-border bg-surface hover:border-border-strong hover:bg-surface-2/50",
+                    )}
+                  >
+                    <div className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
+                      active ? "bg-accent text-accent-fg" : "bg-surface-2 text-muted"
+                    )}>
+                      <Icon width={20} height={20} />
+                    </div>
+                    <div>
+                      <div className="font-medium text-fg">{item.label}</div>
+                      <div className="mt-1 text-xs text-muted leading-relaxed">{item.detail}</div>
+                    </div>
+                    {active && (
+                      <div className="absolute top-3 right-3">
+                        <div className="h-2 w-2 rounded-full bg-accent" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </CardSection>
+
+        <CardSection divided className="space-y-6">
+          <h3 className="text-sm font-medium text-fg">Simulation Parameters</h3>
+          
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {mode === "manual" && (
+              <Field label="Initial value">
+                <Input
+                  type="number"
+                  min={0}
+                  step={100}
+                  value={initialValue}
+                  onChange={(e) => setInitialValue(Number(e.target.value))}
+                  adornmentLeft="$"
+                />
+              </Field>
+            )}
+
+            <NumberField
+              label="Horizon"
+              hint="Months"
+              min={1}
+              max={120}
+              step={1}
+              value={horizonMonths}
+              onChange={setHorizonMonths}
+            />
+            <NumberField
+              label="Simulations"
+              hint="Number of paths"
+              min={100}
+              max={50_000}
+              step={100}
+              value={nSimulations}
+              onChange={setNSimulations}
+            />
+            <NumberField
+              label="Lookback"
+              hint="Trading days"
+              min={252}
+              max={5040}
+              step={21}
+              value={lookbackDays}
+              onChange={setLookbackDays}
+            />
+            <Field label="As-of date" hint="Optional">
+              <Input
+                type="date"
+                value={asOfDate}
+                onChange={(e) => setAsOfDate(e.target.value)}
+              />
+            </Field>
+            <Field label="Benchmark" hint="Optional">
               <Input
                 type="text"
-                value={fromBacktestId}
-                onChange={(e) => setFromBacktestId(e.target.value)}
-                placeholder="00000000-0000-0000-0000-000000000000"
+                value={benchmarkTicker}
+                onChange={(e) => setBenchmarkTicker(e.target.value)}
+                placeholder="SPY"
                 className="font-mono"
               />
             </Field>
-          )}
-        </div>
-      </Card>
-
-      <Card>
-        <CardHeader
-          eyebrow="Step 2"
-          title="Method"
-          description="Pick the simulation engine that drives future returns."
-        />
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
-          {METHODS.map((item) => {
-            const active = method === item.value;
-            return (
-              <button
-                key={item.value}
-                type="button"
-                onClick={() => setMethod(item.value)}
-                aria-pressed={active}
-                className={cn(
-                  "rounded-lg border p-4 text-left transition-all focus-ring",
-                  active
-                    ? "border-accent bg-accent/[0.06] ring-1 ring-accent/30"
-                    : "border-border hover:border-accent/40 hover:bg-surface-2",
-                )}
-              >
-                <div className="text-sm font-semibold text-fg">{item.label}</div>
-                <div className="mt-1 text-xs leading-5 text-muted">{item.detail}</div>
-              </button>
-            );
-          })}
-        </div>
-      </Card>
-
-      <Card>
-        <CardHeader
-          eyebrow="Step 3"
-          title="Simulation parameters"
-          description="Horizon, sample count, lookback window, and optional anchors."
-        />
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {mode === "manual" && (
-            <Field label="Initial value">
+            <Field label="Random seed" hint="Optional, for reproducibility">
               <Input
                 type="number"
                 min={0}
-                step={100}
-                value={initialValue}
-                onChange={(e) => setInitialValue(Number(e.target.value))}
-                adornmentLeft="$"
+                step={1}
+                value={randomSeed}
+                onChange={(e) => setRandomSeed(e.target.value)}
+                placeholder="42"
               />
             </Field>
-          )}
+          </div>
+        </CardSection>
 
-          <NumberField
-            label="Horizon months"
-            min={1}
-            max={120}
-            step={1}
-            value={horizonMonths}
-            onChange={setHorizonMonths}
-          />
-          <NumberField
-            label="Simulations"
-            min={100}
-            max={50_000}
-            step={100}
-            value={nSimulations}
-            onChange={setNSimulations}
-          />
-          <NumberField
-            label="Lookback trading days"
-            min={252}
-            max={5040}
-            step={21}
-            value={lookbackDays}
-            onChange={setLookbackDays}
-          />
-          <Field label="As-of date (optional)">
-            <Input
-              type="date"
-              value={asOfDate}
-              onChange={(e) => setAsOfDate(e.target.value)}
-            />
-          </Field>
-          <Field label="Benchmark ticker (optional)">
-            <Input
-              type="text"
-              value={benchmarkTicker}
-              onChange={(e) => setBenchmarkTicker(e.target.value)}
-              placeholder="SPY"
-              className="font-mono"
-            />
-          </Field>
-          <Field label="Random seed (optional)">
-            <Input
-              type="number"
-              min={0}
-              step={1}
-              value={randomSeed}
-              onChange={(e) => setRandomSeed(e.target.value)}
-            />
-          </Field>
-        </div>
-
-        <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border pt-5">
-          <Button type="submit" disabled={!payload || mutation.isPending} size="lg">
-            {mutation.isPending ? "Running…" : "Run Forecast"}
-          </Button>
-          {localError && <span className="text-sm text-negative">{localError}</span>}
-          {!localError && apiError && <span className="text-sm text-negative">{apiError}</span>}
-        </div>
+        {/* Submit */}
+        <CardSection divided>
+          <div className="flex flex-wrap items-center gap-4">
+            <Button 
+              type="submit" 
+              disabled={!payload || mutation.isPending} 
+              size="lg"
+              loading={mutation.isPending}
+            >
+              {mutation.isPending ? "Running forecast..." : "Run Forecast"}
+            </Button>
+            {localError && (
+              <span className="text-sm text-negative">{localError}</span>
+            )}
+            {!localError && apiError && (
+              <span className="text-sm text-negative">{apiError}</span>
+            )}
+          </div>
+        </CardSection>
       </Card>
     </form>
   );
@@ -354,6 +389,7 @@ function buildCommonPayload({
 
 function NumberField({
   label,
+  hint,
   value,
   min,
   max,
@@ -361,6 +397,7 @@ function NumberField({
   onChange,
 }: {
   label: string;
+  hint?: string;
   value: number;
   min: number;
   max: number;
@@ -368,7 +405,7 @@ function NumberField({
   onChange: (value: number) => void;
 }) {
   return (
-    <Field label={label}>
+    <Field label={label} hint={hint}>
       <Input
         type="number"
         min={min}
