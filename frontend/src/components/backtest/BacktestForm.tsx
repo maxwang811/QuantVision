@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
-import { Card, CardHeader } from "@/components/ui/Card";
+import { Card, CardHeader, CardSection } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Input, Select } from "@/components/ui/Input";
 import {
@@ -107,38 +107,39 @@ export function BacktestForm({ onSuccess, defaultRows }: Props) {
 
   return (
     <form onSubmit={submit} className="space-y-6">
-      <Card>
+      <Card variant="elevated">
         <CardHeader
-          eyebrow="Step 1"
-          title="Portfolio"
-          description="Pick tickers and assign target weights. They must sum to 100%."
+          title="Portfolio & Strategy"
+          description="Select assets, assign weights, and choose how the portfolio is traded."
+          size="large"
         />
-        <div className="mt-5 space-y-5">
-          <Field label="Run name (optional)">
+        
+        <CardSection divided className="space-y-6">
+          {/* Run name */}
+          <Field label="Run name" hint="Optional - helps identify this backtest later">
             <Input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={128}
-              placeholder="Monthly rebalance baseline"
+              placeholder="e.g., Monthly rebalance baseline"
             />
           </Field>
-          <PortfolioWeightEditor rows={rows} onChange={setRows} />
-        </div>
-      </Card>
 
-      <Card>
-        <CardHeader
-          eyebrow="Step 2"
-          title="Strategy"
-          description="Choose how the portfolio is traded over the run."
-        />
-        <div className="mt-5 space-y-5">
+          {/* Portfolio weights */}
+          <PortfolioWeightEditor rows={rows} onChange={setRows} />
+        </CardSection>
+
+        <CardSection divided className="space-y-6">
+          {/* Strategy selection */}
           <StrategySelector value={strategy} onChange={setStrategy} />
+          
+          {/* Strategy-specific parameters */}
           {strategy === "ma_crossover" && (
-            <div className="grid gap-4 rounded-lg border border-border bg-surface-2/40 p-4 sm:grid-cols-2">
+            <div className="grid gap-4 rounded-xl border border-border bg-surface-2/50 p-4 sm:grid-cols-2">
               <NumberField
-                label="Short MA window (trading days)"
+                label="Short MA window"
+                hint="Trading days"
                 min={2}
                 max={252}
                 step={1}
@@ -146,7 +147,8 @@ export function BacktestForm({ onSuccess, defaultRows }: Props) {
                 onChange={setShortWindow}
               />
               <NumberField
-                label="Long MA window (trading days)"
+                label="Long MA window"
+                hint="Trading days"
                 min={2}
                 max={252}
                 step={1}
@@ -155,10 +157,12 @@ export function BacktestForm({ onSuccess, defaultRows }: Props) {
               />
             </div>
           )}
+          
           {rankingStrategy && (
-            <div className="grid gap-4 rounded-lg border border-border bg-surface-2/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 rounded-xl border border-border bg-surface-2/50 p-4 sm:grid-cols-2 lg:grid-cols-4">
               <NumberField
                 label="Top N"
+                hint="Assets to hold"
                 min={1}
                 max={Math.max(1, rows.filter((r) => r.ticker.trim()).length)}
                 step={1}
@@ -178,6 +182,7 @@ export function BacktestForm({ onSuccess, defaultRows }: Props) {
                   </Field>
                   <NumberField
                     label="Training lookback"
+                    hint="Days"
                     min={126}
                     max={5040}
                     step={21}
@@ -186,6 +191,7 @@ export function BacktestForm({ onSuccess, defaultRows }: Props) {
                   />
                   <NumberField
                     label="Label horizon"
+                    hint="Days"
                     min={5}
                     max={126}
                     step={1}
@@ -196,72 +202,82 @@ export function BacktestForm({ onSuccess, defaultRows }: Props) {
               )}
             </div>
           )}
-        </div>
-      </Card>
+        </CardSection>
 
-      <Card>
-        <CardHeader
-          eyebrow="Step 3"
-          title="Run parameters"
-          description="Capital, date range, transaction cost, and benchmark."
-        />
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <Field label="Initial cash">
-            <Input
-              type="number"
-              min={0}
-              step={100}
-              value={initialCash}
-              onChange={(e) => setInitialCash(Number(e.target.value))}
-              adornmentLeft="$"
-            />
-          </Field>
+        <CardSection divided className="space-y-6">
+          <h3 className="text-sm font-medium text-fg">Run Parameters</h3>
+          
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Field label="Initial capital">
+              <Input
+                type="number"
+                min={0}
+                step={100}
+                value={initialCash}
+                onChange={(e) => setInitialCash(Number(e.target.value))}
+                adornmentLeft="$"
+              />
+            </Field>
 
-          <Field label="Transaction cost (bps)">
-            <Input
-              type="number"
-              min={0}
-              max={1000}
-              step={1}
-              value={transactionCostBps}
-              onChange={(e) => setTransactionCostBps(Number(e.target.value))}
-            />
-          </Field>
+            <Field label="Transaction cost" hint="Basis points">
+              <Input
+                type="number"
+                min={0}
+                max={1000}
+                step={1}
+                value={transactionCostBps}
+                onChange={(e) => setTransactionCostBps(Number(e.target.value))}
+                adornmentRight="bps"
+              />
+            </Field>
 
-          <Field label="Start date">
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </Field>
+            <Field label="Benchmark" hint="Optional">
+              <Input
+                type="text"
+                value={benchmarkTicker}
+                onChange={(e) => setBenchmarkTicker(e.target.value)}
+                placeholder="SPY"
+                className="font-mono"
+              />
+            </Field>
 
-          <Field label="End date">
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </Field>
+            <Field label="Start date">
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </Field>
 
-          <Field label="Benchmark ticker (optional)">
-            <Input
-              type="text"
-              value={benchmarkTicker}
-              onChange={(e) => setBenchmarkTicker(e.target.value)}
-              placeholder="SPY"
-              className="font-mono"
-            />
-          </Field>
-        </div>
+            <Field label="End date">
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </Field>
+          </div>
+        </CardSection>
 
-        <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border pt-5">
-          <Button type="submit" disabled={!payload || mutation.isPending} size="lg">
-            {mutation.isPending ? "Running…" : "Run Backtest"}
-          </Button>
-          {localError && <span className="text-sm text-negative">{localError}</span>}
-          {!localError && apiError && <span className="text-sm text-negative">{apiError}</span>}
-        </div>
+        {/* Submit */}
+        <CardSection divided>
+          <div className="flex flex-wrap items-center gap-4">
+            <Button 
+              type="submit" 
+              disabled={!payload || mutation.isPending} 
+              size="lg"
+              loading={mutation.isPending}
+            >
+              {mutation.isPending ? "Running backtest..." : "Run Backtest"}
+            </Button>
+            {localError && (
+              <span className="text-sm text-negative">{localError}</span>
+            )}
+            {!localError && apiError && (
+              <span className="text-sm text-negative">{apiError}</span>
+            )}
+          </div>
+        </CardSection>
       </Card>
     </form>
   );
@@ -269,6 +285,7 @@ export function BacktestForm({ onSuccess, defaultRows }: Props) {
 
 function NumberField({
   label,
+  hint,
   value,
   min,
   max,
@@ -276,6 +293,7 @@ function NumberField({
   onChange,
 }: {
   label: string;
+  hint?: string;
   value: number;
   min: number;
   max: number;
@@ -283,7 +301,7 @@ function NumberField({
   onChange: (value: number) => void;
 }) {
   return (
-    <Field label={label}>
+    <Field label={label} hint={hint}>
       <Input
         type="number"
         min={min}

@@ -3,68 +3,83 @@
 @tailwind utilities;
 
 :root {
-  /* Surfaces */
-  --bg: 248 250 252;            /* slate-50 */
-  --surface: 255 255 255;       /* card surface */
-  --surface-2: 241 245 249;     /* slate-100 - hover, subtle fills */
+  /* Surfaces - Warm light palette */
+  --bg: 250 250 249;              /* stone-50 */
+  --surface: 255 255 255;
+  --surface-2: 245 245 244;       /* stone-100 */
   --surface-elevated: 255 255 255;
 
   /* Text */
-  --fg: 15 23 42;               /* slate-900 */
-  --muted: 100 116 139;         /* slate-500 */
+  --fg: 28 25 23;                 /* stone-900 */
+  --fg-secondary: 68 64 60;       /* stone-700 */
+  --muted: 120 113 108;           /* stone-500 */
 
   /* Lines */
-  --border: 226 232 240;        /* slate-200 */
-  --border-strong: 203 213 225; /* slate-300 */
+  --border: 231 229 228;          /* stone-200 */
+  --border-strong: 214 211 209;   /* stone-300 */
 
-  /* Brand + semantics */
-  --accent: 99 102 241;         /* indigo-500 */
+  /* Brand - Refined teal accent */
+  --accent: 20 184 166;           /* teal-500 */
   --accent-fg: 255 255 255;
-  --accent-soft: 238 242 255;   /* indigo-50 */
-  --positive: 16 185 129;       /* emerald-500 */
-  --negative: 239 68 68;        /* red-500 */
-  --warn: 234 179 8;            /* amber-500 */
+  --accent-soft: 204 251 241;     /* teal-100 */
+  --accent-hover: 13 148 136;     /* teal-600 */
 
-  --ring: 99 102 241;
-  --shadow-rgb: 15 23 42;
+  /* Semantic */
+  --positive: 34 197 94;          /* green-500 */
+  --positive-soft: 220 252 231;   /* green-100 */
+  --negative: 239 68 68;          /* red-500 */
+  --negative-soft: 254 226 226;   /* red-100 */
+  --warn: 245 158 11;             /* amber-500 */
+  --warn-soft: 254 243 199;       /* amber-100 */
+
+  --ring: 20 184 166;
+  --shadow-rgb: 28 25 23;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: 9 11 17;
-    --surface: 17 21 30;
-    --surface-2: 24 30 42;
-    --surface-elevated: 22 27 37;
+    /* Surfaces - Deep dark palette inspired by Vercel */
+    --bg: 10 10 10;               /* near-black */
+    --surface: 18 18 18;          /* card surface */
+    --surface-2: 26 26 26;        /* hover states */
+    --surface-elevated: 24 24 24;
 
-    --fg: 226 232 240;
-    --muted: 148 163 184;
+    /* Text */
+    --fg: 250 250 249;            /* stone-50 */
+    --fg-secondary: 214 211 209;  /* stone-300 */
+    --muted: 163 163 163;         /* neutral-400 */
 
-    --border: 38 47 64;
-    --border-strong: 60 72 94;
+    /* Lines */
+    --border: 38 38 38;           /* neutral-800 */
+    --border-strong: 64 64 64;    /* neutral-700 */
 
-    --accent: 129 140 248;
-    --accent-fg: 17 21 30;
-    --accent-soft: 30 33 56;
-    --positive: 52 211 153;
-    --negative: 248 113 113;
-    --warn: 250 204 21;
+    /* Brand - Brighter teal for dark mode */
+    --accent: 45 212 191;         /* teal-400 */
+    --accent-fg: 10 10 10;
+    --accent-soft: 20 40 38;      /* teal tinted dark */
+    --accent-hover: 94 234 212;   /* teal-300 */
 
-    --ring: 129 140 248;
+    /* Semantic - Adjusted for dark */
+    --positive: 74 222 128;       /* green-400 */
+    --positive-soft: 20 38 28;
+    --negative: 248 113 113;      /* red-400 */
+    --negative-soft: 45 20 20;
+    --warn: 251 191 36;           /* amber-400 */
+    --warn-soft: 45 38 15;
+
+    --ring: 45 212 191;
     --shadow-rgb: 0 0 0;
   }
 }
 
-html,
-body {
-  background-color: rgb(var(--bg));
-  color: rgb(var(--fg));
-}
-
 html {
+  background-color: rgb(var(--bg));
   scroll-behavior: smooth;
 }
 
 body {
+  background-color: rgb(var(--bg));
+  color: rgb(var(--fg));
   font-feature-settings: "rlig" 1, "calt" 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -97,8 +112,8 @@ body {
   }
 }
 *::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 *::-webkit-scrollbar-thumb {
   background-color: rgb(var(--border-strong));
@@ -129,4 +144,32 @@ body {
   );
   background-size: 200% 100%;
   animation: shimmer 1.6s infinite linear;
+}
+
+/* Subtle gradient background for hero sections */
+.gradient-bg {
+  background: linear-gradient(
+    135deg,
+    rgb(var(--bg)) 0%,
+    rgb(var(--surface-2)) 100%
+  );
+}
+
+/* Glow effect for accent elements */
+.accent-glow {
+  box-shadow: 0 0 20px rgb(var(--accent) / 0.15),
+              0 0 40px rgb(var(--accent) / 0.1);
+}
+
+/* Text gradient */
+.text-gradient {
+  background: linear-gradient(135deg, rgb(var(--accent)) 0%, rgb(var(--positive)) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Smooth transitions */
+.transition-base {
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }

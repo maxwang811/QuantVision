@@ -8,13 +8,15 @@ interface FieldProps {
   error?: ReactNode;
   children: ReactNode;
   className?: string;
+  required?: boolean;
 }
 
-export function Field({ label, htmlFor, hint, error, children, className }: FieldProps) {
+export function Field({ label, htmlFor, hint, error, children, className, required }: FieldProps) {
   return (
-    <label htmlFor={htmlFor} className={cn("block space-y-1.5", className)}>
-      <span className="text-[11px] font-semibold uppercase tracking-eyebrow text-muted">
+    <label htmlFor={htmlFor} className={cn("block space-y-2", className)}>
+      <span className="flex items-center gap-1 text-sm font-medium text-fg">
         {label}
+        {required && <span className="text-negative">*</span>}
       </span>
       {children}
       {error ? (

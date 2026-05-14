@@ -120,9 +120,8 @@ export default function ExperimentsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Experiments"
-        title="History"
-        description="Search every saved run, compare backtests and forecasts side-by-side, export reproducible results, and run bounded parameter sweeps."
+        title="Experiment History"
+        description="Search saved runs, compare backtests and forecasts side-by-side, export results, and run parameter sweeps."
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -270,9 +269,9 @@ function HistoryTab({
       <Card padded={false} className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="border-b border-border bg-surface-2/60 text-xs uppercase tracking-eyebrow text-muted">
+            <thead className="border-b border-border bg-surface-2/50 text-xs font-medium text-muted">
               <tr>
-                <th className="w-12 px-4 py-3">Cmp</th>
+                <th className="w-12 px-4 py-3"></th>
                 <th className="px-4 py-3">Run</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Metric</th>
@@ -470,11 +469,14 @@ function BacktestComparison({ comparison }: { comparison: ExperimentCompareOut }
   const chartData = buildBacktestChartData(comparison);
   return (
     <div className="space-y-4">
-      <SectionEyebrow as="h2">Backtest comparison</SectionEyebrow>
+      <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold text-fg">Backtest Comparison</h2>
+          <div className="h-px flex-1 bg-border" />
+        </div>
       <Card padded={false} className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="border-b border-border bg-surface-2/60 text-xs uppercase tracking-eyebrow text-muted">
+            <thead className="border-b border-border bg-surface-2/50 text-xs font-medium text-muted">
               <tr>
                 <th className="px-4 py-3">Run</th>
                 <th className="px-4 py-3">Strategy</th>
@@ -535,11 +537,14 @@ function ForecastComparison({ comparison }: { comparison: ExperimentCompareOut }
   if (comparison.forecasts.length === 0) return null;
   return (
     <div className="space-y-4">
-      <SectionEyebrow as="h2">Forecast comparison</SectionEyebrow>
+      <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold text-fg">Forecast Comparison</h2>
+          <div className="h-px flex-1 bg-border" />
+        </div>
       <Card padded={false} className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[840px] text-left text-sm">
-            <thead className="border-b border-border bg-surface-2/60 text-xs uppercase tracking-eyebrow text-muted">
+            <thead className="border-b border-border bg-surface-2/50 text-xs font-medium text-muted">
               <tr>
                 <th className="px-4 py-3">Run</th>
                 <th className="px-4 py-3">Method</th>
@@ -685,8 +690,7 @@ function BacktestSweepForm({
   return (
     <Card as="form" onSubmit={submit}>
       <CardHeader
-        eyebrow="Backtest"
-        title="Backtest sweep"
+        title="Backtest Sweep"
         description="Grid over strategy, cost, top-N, and lookback. Capped at 50 runs."
       />
       <div className="mt-5 space-y-4">
@@ -796,8 +800,7 @@ function ForecastSweepForm({
   return (
     <Card as="form" onSubmit={submit}>
       <CardHeader
-        eyebrow="Forecast"
-        title="Forecast sweep"
+        title="Forecast Sweep"
         description="Grid over method, horizon, sample count, and seed. Capped at 50 runs."
       />
       <div className="mt-5 space-y-4">
@@ -862,8 +865,8 @@ function SweepRunsTable({
 }) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <SectionEyebrow as="h2">Sweep runs</SectionEyebrow>
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-sm font-medium text-fg">Sweep Runs</h2>
         {sweepId && (
           <div className="flex gap-3 text-sm">
             <a href={api.exportSweepUrl(sweepId, "csv")} className="text-accent hover:underline">
@@ -879,7 +882,7 @@ function SweepRunsTable({
       <Card padded={false} className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-left text-sm">
-            <thead className="border-b border-border bg-surface-2/60 text-xs uppercase tracking-eyebrow text-muted">
+            <thead className="border-b border-border bg-surface-2/50 text-xs font-medium text-muted">
               <tr>
                 <th className="px-4 py-3">Index</th>
                 <th className="px-4 py-3">Status</th>

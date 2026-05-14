@@ -5,7 +5,6 @@ import { BacktestResults } from "@/components/backtest/BacktestResults";
 import { OptimizerPanel } from "@/components/backtest/OptimizerPanel";
 import type { PortfolioRow } from "@/components/backtest/PortfolioWeightEditor";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { SectionEyebrow } from "@/components/ui/SectionEyebrow";
 import type { BacktestOut } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -21,9 +20,8 @@ export default function BacktestPage() {
 function Header() {
   return (
     <PageHeader
-      eyebrow="Run"
       title="Backtest"
-      description="Build a portfolio, pick a strategy, and replay it on historical prices. Metrics, equity curve, drawdown, and trades render below after the run completes."
+      description="Build a portfolio, choose a strategy, and replay it on historical market data."
     />
   );
 }
@@ -45,7 +43,7 @@ function BacktestPageInner() {
   };
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <Header />
 
       <OptimizerPanel onApply={(rows) => setPresetRows(rows)} />
@@ -53,8 +51,11 @@ function BacktestPageInner() {
       <BacktestForm onSuccess={onSuccess} defaultRows={presetRows} />
 
       {activeId && (
-        <section className="space-y-4">
-          <SectionEyebrow as="h2">Results</SectionEyebrow>
+        <section className="space-y-6">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold text-fg">Results</h2>
+            <div className="h-px flex-1 bg-border" />
+          </div>
           <BacktestResults backtestId={activeId} initial={latest ?? undefined} />
         </section>
       )}
