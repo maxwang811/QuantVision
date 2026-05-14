@@ -34,7 +34,7 @@ seed:
 	docker-compose exec backend python scripts/seed_assets.py
 
 ingest:
-	docker-compose exec backend python scripts/ingest_prices.py --tickers SPY,AAPL,MSFT,GOOGL,NVDA --years 5
+	docker-compose exec backend python scripts/ingest_prices.py --all --years 8
 
 test: test-backend test-frontend
 

@@ -2,13 +2,13 @@
 
 The actual upsert uses Postgres-specific INSERT ... ON CONFLICT, so the
 end-to-end idempotence test lives in tests/integration/. These unit tests
-cover the pure-logic pieces: row conversion, range narrowing on incremental
-fetches, and the skip-existing short-circuit.
+cover the pure-logic pieces: row conversion, the full-coverage short-circuit,
+and the backfill case where the DB is missing earlier history.
 """
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 
 import pandas as pd
 import pytest
@@ -63,11 +63,12 @@ def test_frame_to_rows_handles_nans(sample_frame):
     assert rows[1]["adj_close"] == 101.5
 
 
-def test_ingest_skips_when_already_up_to_date(monkeypatch, sample_frame):
-    """If latest_price_date >= requested end, fetcher is never called."""
+def test_ingest_skips_when_coverage_already_spans_window(monkeypatch, sample_frame):
+    """If stored [earliest, latest] already spans [start, end], fetcher is never called."""
     fake_asset = type("A", (), {"id": "abc", "ticker": "FOO"})()
     monkeypatch.setattr(ingest_module, "get_asset_by_ticker", lambda db, t: fake_asset)
     monkeypatch.setattr(ingest_module, "latest_price_date", lambda db, _id: date(2025, 1, 10))
+    monkeypatch.setattr(ingest_module, "earliest_price_date", lambda db, _id: date(2023, 6, 1))
 
     fetcher = FakeFetcher(sample_frame)
     result = ingest_module.ingest_ticker(
@@ -82,22 +83,42 @@ def test_ingest_skips_when_already_up_to_date(monkeypatch, sample_frame):
     assert fetcher.last_call is None
 
 
-def test_ingest_narrows_start_to_overlap_window(monkeypatch, sample_frame):
-    """If the DB has data through 2024-06-15, we should refetch from 2024-06-10."""
+def test_ingest_backfills_when_start_is_before_stored_earliest(monkeypatch, sample_frame):
+    """Requesting an earlier start than what's stored must trigger a full-window fetch."""
     fake_asset = type("A", (), {"id": "abc", "ticker": "FOO"})()
     monkeypatch.setattr(ingest_module, "get_asset_by_ticker", lambda db, t: fake_asset)
-    monkeypatch.setattr(ingest_module, "latest_price_date", lambda db, _id: date(2024, 6, 15))
+    monkeypatch.setattr(ingest_module, "latest_price_date", lambda db, _id: date(2025, 1, 10))
+    monkeypatch.setattr(ingest_module, "earliest_price_date", lambda db, _id: date(2024, 6, 1))
     monkeypatch.setattr(ingest_module, "_upsert", lambda db, rows: len(rows))
 
     fetcher = FakeFetcher(sample_frame)
     ingest_module.ingest_ticker(
         db=None,
         ticker="FOO",
-        start=date(2024, 1, 1),
-        end=date(2024, 7, 1),
+        start=date(2020, 1, 1),
+        end=date(2025, 1, 1),
         fetcher=fetcher,
-        overlap_days=5,
     )
     assert fetcher.last_call is not None
-    expected_start = date(2024, 6, 15) - timedelta(days=5)
-    assert fetcher.last_call["start"] == expected_start
+    assert fetcher.last_call["start"] == date(2020, 1, 1)
+    assert fetcher.last_call["end"] == date(2025, 1, 1)
+
+
+def test_ingest_fetches_full_window_when_db_is_empty(monkeypatch, sample_frame):
+    fake_asset = type("A", (), {"id": "abc", "ticker": "FOO"})()
+    monkeypatch.setattr(ingest_module, "get_asset_by_ticker", lambda db, t: fake_asset)
+    monkeypatch.setattr(ingest_module, "latest_price_date", lambda db, _id: None)
+    monkeypatch.setattr(ingest_module, "earliest_price_date", lambda db, _id: None)
+    monkeypatch.setattr(ingest_module, "_upsert", lambda db, rows: len(rows))
+
+    fetcher = FakeFetcher(sample_frame)
+    ingest_module.ingest_ticker(
+        db=None,
+        ticker="FOO",
+        start=date(2020, 1, 1),
+        end=date(2025, 1, 1),
+        fetcher=fetcher,
+    )
+    assert fetcher.last_call is not None
+    assert fetcher.last_call["start"] == date(2020, 1, 1)
+    assert fetcher.last_call["end"] == date(2025, 1, 1)

@@ -1,15 +1,17 @@
 """Idempotent yfinance → Postgres price ingestion.
 
-Strategy: for each ticker, find latest stored date, fetch from (latest - 5d)
-through `end`, then upsert via INSERT ... ON CONFLICT DO UPDATE. The 5-day
-overlap re-validates recent data in case of late corrections.
+Strategy: for each ticker, if stored coverage already spans the requested
+[start, end] window, short-circuit. Otherwise fetch the full requested
+window from yfinance and upsert via INSERT ... ON CONFLICT DO UPDATE — the
+(asset_id, date) unique index handles dupes, so re-ingesting is safe and
+historical backfill works symmetrically with forward extension.
 """
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date
 
 import pandas as pd
 from sqlalchemy.dialects.postgresql import insert
@@ -17,7 +19,11 @@ from sqlalchemy.orm import Session
 
 from app.models.asset import Asset
 from app.models.price import PriceHistory
-from app.services.data.price_repo import get_asset_by_ticker, latest_price_date
+from app.services.data.price_repo import (
+    earliest_price_date,
+    get_asset_by_ticker,
+    latest_price_date,
+)
 from app.services.data.yfinance_client import PriceFetcher, YFinanceClient
 
 log = logging.getLogger(__name__)
@@ -51,19 +57,26 @@ def ingest_ticker(
         db.flush()
 
     last_date = latest_price_date(db, asset.id)
-    fetch_start = start
-    if last_date is not None:
-        fetch_start = max(start, last_date - timedelta(days=overlap_days))
-        if fetch_start >= end:
-            return IngestResult(
-                ticker=ticker,
-                rows_upserted=0,
-                range_start=last_date,
-                range_end=last_date,
-                skipped_existing=True,
-            )
+    first_date = earliest_price_date(db, asset.id)
 
-    df = fetcher.fetch(ticker, fetch_start, end)
+    if (
+        first_date is not None
+        and last_date is not None
+        and first_date <= start
+        and last_date >= end
+    ):
+        return IngestResult(
+            ticker=ticker,
+            rows_upserted=0,
+            range_start=first_date,
+            range_end=last_date,
+            skipped_existing=True,
+        )
+
+    fetch_start = start
+    fetch_end = end
+
+    df = fetcher.fetch(ticker, fetch_start, fetch_end)
     rows = _frame_to_rows(asset.id, df)
     if not rows:
         return IngestResult(ticker=ticker, rows_upserted=0, range_start=None, range_end=None)
