@@ -33,9 +33,8 @@ const STRATEGIES: StrategyOption[] = [
   {
     value: "ma_crossover",
     label: "MA Crossover",
-    description: "Buy when short MA crosses above long MA.",
-    enabled: false,
-    hint: "Coming Stage 5",
+    description: "Hold each asset only when its short MA is above its long MA.",
+    enabled: true,
   },
   {
     value: "ml_ranking",

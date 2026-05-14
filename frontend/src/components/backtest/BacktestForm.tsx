@@ -48,6 +48,8 @@ export function BacktestForm({ onSuccess, defaultRows }: Props) {
   const [selectedModel, setSelectedModel] = useState<SelectedModel>("xgboost");
   const [trainingLookbackDays, setTrainingLookbackDays] = useState<number>(756);
   const [labelHorizonDays, setLabelHorizonDays] = useState<number>(20);
+  const [shortWindow, setShortWindow] = useState<number>(50);
+  const [longWindow, setLongWindow] = useState<number>(200);
 
   const { localError, payload } = useMemo(
     () =>
@@ -64,6 +66,8 @@ export function BacktestForm({ onSuccess, defaultRows }: Props) {
         selectedModel,
         trainingLookbackDays,
         labelHorizonDays,
+        shortWindow,
+        longWindow,
       }),
     [
       rows,
@@ -78,6 +82,8 @@ export function BacktestForm({ onSuccess, defaultRows }: Props) {
       selectedModel,
       trainingLookbackDays,
       labelHorizonDays,
+      shortWindow,
+      longWindow,
     ],
   );
 
@@ -129,6 +135,26 @@ export function BacktestForm({ onSuccess, defaultRows }: Props) {
         />
         <div className="mt-5 space-y-5">
           <StrategySelector value={strategy} onChange={setStrategy} />
+          {strategy === "ma_crossover" && (
+            <div className="grid gap-4 rounded-lg border border-border bg-surface-2/40 p-4 sm:grid-cols-2">
+              <NumberField
+                label="Short MA window (trading days)"
+                min={2}
+                max={252}
+                step={1}
+                value={shortWindow}
+                onChange={setShortWindow}
+              />
+              <NumberField
+                label="Long MA window (trading days)"
+                min={2}
+                max={252}
+                step={1}
+                value={longWindow}
+                onChange={setLongWindow}
+              />
+            </div>
+          )}
           {rankingStrategy && (
             <div className="grid gap-4 rounded-lg border border-border bg-surface-2/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
               <NumberField

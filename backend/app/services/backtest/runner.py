@@ -228,6 +228,26 @@ def _normalize_strategy_params(req: BacktestCreate) -> dict[str, Any]:
     if req.strategy in {"buy_and_hold", "monthly_rebalance"}:
         return raw
 
+    if req.strategy == "ma_crossover":
+        short_window = int(raw.get("short_window", 50))
+        long_window = int(raw.get("long_window", 200))
+        if short_window < 2 or short_window > 252:
+            raise ValidationError(
+                "short_window must be between 2 and 252",
+                code="invalid_strategy_params",
+            )
+        if long_window < 2 or long_window > 252:
+            raise ValidationError(
+                "long_window must be between 2 and 252",
+                code="invalid_strategy_params",
+            )
+        if short_window >= long_window:
+            raise ValidationError(
+                "short_window must be less than long_window",
+                code="invalid_strategy_params",
+            )
+        return {"short_window": short_window, "long_window": long_window}
+
     top_n = int(raw.get("top_n", 5))
     if top_n < 1:
         raise ValidationError("top_n must be at least 1", code="invalid_strategy_params")
@@ -352,6 +372,9 @@ def _strategy_prebuffer(strategy: str, strategy_params: dict[str, Any]) -> timed
     if strategy == "momentum":
         lookback = int(strategy_params.get("lookback_days", 63))
         return timedelta(days=int(lookback * 365 / 252) + 30)
+    if strategy == "ma_crossover":
+        long_window = int(strategy_params.get("long_window", 200))
+        return timedelta(days=int(long_window * 365 / 252) + 30)
     return timedelta(days=PRE_BUFFER_DAYS)
 
 
@@ -376,6 +399,13 @@ def _strategy_kwargs(
                 "prediction_scores": model_prediction_scores or {},
                 "top_n": strategy_params["top_n"],
                 "rebalance_frequency": strategy_params["rebalance_frequency"],
+            }
+        )
+    elif strategy == "ma_crossover":
+        kwargs.update(
+            {
+                "short_window": strategy_params["short_window"],
+                "long_window": strategy_params["long_window"],
             }
         )
     return kwargs

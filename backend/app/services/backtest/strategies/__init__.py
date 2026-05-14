@@ -27,4 +27,9 @@ def build_strategy(name: str, params: dict[str, Any]) -> Strategy:
 
 
 # Eager-import strategy modules so their @register decorators run at import time.
-from app.services.backtest.strategies import buy_hold, ranking, rebalance  # noqa: E402,F401
+from app.services.backtest.strategies import (  # noqa: E402,F401
+    buy_hold,
+    ma_crossover,
+    ranking,
+    rebalance,
+)

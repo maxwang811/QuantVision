@@ -14,6 +14,8 @@ export interface ValidateInput {
   selectedModel: SelectedModel;
   trainingLookbackDays: number;
   labelHorizonDays: number;
+  shortWindow: number;
+  longWindow: number;
 }
 
 export interface ValidateOutput {
@@ -39,6 +41,8 @@ export function validateBacktestPayload(input: ValidateInput): ValidateOutput {
     selectedModel,
     trainingLookbackDays,
     labelHorizonDays,
+    shortWindow,
+    longWindow,
   } = input;
 
   const cleanRows = rows.filter((r) => r.ticker.trim().length > 0);
@@ -100,6 +104,26 @@ export function validateBacktestPayload(input: ValidateInput): ValidateOutput {
       };
     }
   }
+  if (strategy === "ma_crossover") {
+    if (!Number.isInteger(shortWindow) || shortWindow < 2 || shortWindow > 252) {
+      return {
+        localError: "Short window must be an integer between 2 and 252.",
+        payload: null,
+      };
+    }
+    if (!Number.isInteger(longWindow) || longWindow < 2 || longWindow > 252) {
+      return {
+        localError: "Long window must be an integer between 2 and 252.",
+        payload: null,
+      };
+    }
+    if (shortWindow >= longWindow) {
+      return {
+        localError: "Short window must be less than long window.",
+        payload: null,
+      };
+    }
+  }
   const weights = rankingStrategy
     ? cleanRows.map(() => 1 / cleanRows.length)
     : cleanRows.map((r) => r.weightPct / 100);
@@ -131,6 +155,12 @@ export function validateBacktestPayload(input: ValidateInput): ValidateOutput {
       selected_model: selectedModel,
       training_lookback_days: trainingLookbackDays,
       label_horizon_days: labelHorizonDays,
+    };
+  }
+  if (strategy === "ma_crossover") {
+    built.strategy_params = {
+      short_window: shortWindow,
+      long_window: longWindow,
     };
   }
   return { localError: null, payload: built };

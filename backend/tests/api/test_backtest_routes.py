@@ -114,6 +114,54 @@ def test_post_backtest_unknown_strategy_rejected_at_schema(client):
     assert r.status_code == 422
 
 
+def test_ma_crossover_via_api(client, db):
+    start, end = date(2024, 1, 2), date(2024, 4, 30)
+    days = trading_days(start, end)
+    # Rising prices so short MA > long MA → "go long" signal fires.
+    _seed(db, "AAPL", start, end, [100.0 + i for i in range(len(days))])
+    _seed(db, "MSFT", start, end, [200.0 + i for i in range(len(days))])
+
+    payload = {
+        "strategy": "ma_crossover",
+        "tickers": ["AAPL", "MSFT"],
+        "weights": [0.6, 0.4],
+        "initial_cash": 10000.0,
+        "start_date": start.isoformat(),
+        "end_date": end.isoformat(),
+        "transaction_cost_bps": 10,
+        "strategy_params": {"short_window": 2, "long_window": 4},
+    }
+    r = client.post("/api/backtests", json=payload)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "completed"
+    bt_id = body["id"]
+
+    rt = client.get(f"/api/backtests/{bt_id}/trades")
+    assert rt.status_code == 200
+    # Once enough bars accumulate and the signal flips to True, both tickers buy.
+    assert len(rt.json()["trades"]) >= 2
+
+
+def test_ma_crossover_invalid_window_ordering_rejected(client, db):
+    start, end = date(2024, 1, 2), date(2024, 1, 31)
+    days = trading_days(start, end)
+    _seed(db, "AAPL", start, end, [100.0] * len(days))
+
+    payload = {
+        "strategy": "ma_crossover",
+        "tickers": ["AAPL"],
+        "weights": [1.0],
+        "initial_cash": 10000.0,
+        "start_date": start.isoformat(),
+        "end_date": end.isoformat(),
+        "strategy_params": {"short_window": 50, "long_window": 20},
+    }
+    r = client.post("/api/backtests", json=payload)
+    assert r.status_code == 422
+    assert r.json()["error"]["code"] == "invalid_strategy_params"
+
+
 def test_monthly_rebalance_via_api(client, db):
     start, end = date(2024, 1, 2), date(2024, 4, 30)
     days = trading_days(start, end)

@@ -17,6 +17,8 @@ const baseInput = {
   selectedModel: "xgboost" as const,
   trainingLookbackDays: 756,
   labelHorizonDays: 20,
+  shortWindow: 50,
+  longWindow: 200,
 };
 
 describe("validateBacktestPayload", () => {
@@ -117,6 +119,30 @@ describe("validateBacktestPayload", () => {
   test("initial cash <= 0 rejected", () => {
     const out = validateBacktestPayload({ ...baseInput, initialCash: 0 });
     expect(out.localError).toMatch(/Initial cash/i);
+  });
+
+  test("ma_crossover passes window params through", () => {
+    const out = validateBacktestPayload({
+      ...baseInput,
+      strategy: "ma_crossover",
+      shortWindow: 20,
+      longWindow: 100,
+    });
+    expect(out.localError).toBeNull();
+    expect(out.payload!.strategy_params).toEqual({
+      short_window: 20,
+      long_window: 100,
+    });
+  });
+
+  test("ma_crossover rejects short >= long", () => {
+    const out = validateBacktestPayload({
+      ...baseInput,
+      strategy: "ma_crossover",
+      shortWindow: 200,
+      longWindow: 50,
+    });
+    expect(out.localError).toMatch(/Short window must be less than long window/i);
   });
 
   test("benchmark ticker is upper-cased and trimmed", () => {

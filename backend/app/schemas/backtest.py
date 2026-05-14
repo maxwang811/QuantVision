@@ -4,7 +4,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-StrategyName = Literal["buy_and_hold", "monthly_rebalance", "momentum", "ml_ranking"]
+StrategyName = Literal[
+    "buy_and_hold", "monthly_rebalance", "momentum", "ml_ranking", "ma_crossover"
+]
 SelectedModel = Literal["logistic_regression", "xgboost"]
 
 

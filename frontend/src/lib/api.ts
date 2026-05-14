@@ -77,7 +77,13 @@ export type PriceSeries = z.infer<typeof PriceSeries>;
 export const Health = z.object({ status: z.string(), db: z.boolean() });
 export type Health = z.infer<typeof Health>;
 
-export const StrategyName = z.enum(["buy_and_hold", "monthly_rebalance", "momentum", "ml_ranking"]);
+export const StrategyName = z.enum([
+  "buy_and_hold",
+  "monthly_rebalance",
+  "momentum",
+  "ml_ranking",
+  "ma_crossover",
+]);
 export type StrategyName = z.infer<typeof StrategyName>;
 
 export const SelectedModel = z.enum(["logistic_regression", "xgboost"]);
